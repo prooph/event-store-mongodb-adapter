@@ -1,0 +1,33 @@
+{
+    "name": "prooph/event-store-mongodb-adapter",
+    "description": "MongoDB Adapter for ProophEventStore",
+    "homepage": "https://github.com/prooph/event-store-mongodb-adapter",
+    "license": "BSD-3-Clause",
+    "authors": [
+    ],
+    "require": {
+        "php": ">=5.5",
+        "zendframework/zend-serializer" : "~2.3",
+        "beberlei/assert": "~2.0"
+    },
+    "require-dev": {
+        "prooph/event-store": "dev-master",
+        "phpunit/phpunit": "3.7.*",
+        "satooshi/php-coveralls": "dev-master"
+    },
+    "autoload": {
+        "psr-4": {
+            "Prooph\\EventStore\\Adapter\\Mongodb\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-0": {
+            "Prooph\\EventStoreTest\\": "vendor/prooph/event-store/tests/"
+        }
+    },
+    "extra": {
+        "branch-alias": {
+            "dev-master": "0.1-dev"
+        }
+    }
+}
