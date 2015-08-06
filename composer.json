@@ -17,7 +17,7 @@
     },
     "autoload": {
         "psr-4": {
-            "Prooph\\EventStore\\Adapter\\Mongodb\\": "src/"
+            "Prooph\\EventStore\\Adapter\\MongoDb\\": "src/"
         }
     },
     "autoload-dev": {
