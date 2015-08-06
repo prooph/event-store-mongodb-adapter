@@ -131,9 +131,6 @@ class MongoDbEventStoreAdapter implements Adapter
 
         $results = $collection->find($metadata);
 
-
-        $events = array();
-
         foreach ($results as $eventData) {
             $payload = Serializer::unserialize($eventData['payload'], $this->serializerAdapter);
 
