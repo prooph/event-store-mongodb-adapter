@@ -179,7 +179,7 @@ class MongoDbEventStoreAdapter implements Adapter
     {
         $collection = $this->getCollection($streamName);
 
-        $collection->createIndex(['_id' => 1], ['unique' => true]);
+        $collection->createIndex(['_id' => 1], ['unique' => true, 'background' => true]);
     }
 
     /**
