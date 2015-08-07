@@ -33,13 +33,6 @@ class MongoDbEventStoreAdapter implements Adapter
     protected $streamTableMap = array();
 
     /**
-     * Serialize adapter used to serialize event payload
-     *
-     * @var string|\Zend\Serializer\Adapter\AdapterInterface
-     */
-    protected $serializerAdapter;
-
-    /**
      * @var array
      */
     protected $standardColumns = ['event_id', 'event_name', 'event_class', 'created_at', 'payload', 'version'];
@@ -64,10 +57,6 @@ class MongoDbEventStoreAdapter implements Adapter
 
         $this->mongoClient = $configuration['mongo_client'];
         $this->dbName      = $configuration['db_name'];
-
-        if (isset($configuration['serializer_adapter'])) {
-            $this->serializerAdapter = $configuration['serializer_adapter'];
-        }
     }
 
     /**
@@ -131,8 +120,9 @@ class MongoDbEventStoreAdapter implements Adapter
 
         $results = $collection->find($metadata);
 
+        $events = [];
+
         foreach ($results as $eventData) {
-            $payload = Serializer::unserialize($eventData['payload'], $this->serializerAdapter);
 
             $eventClass = $eventData['event_class'];
 
@@ -147,9 +137,9 @@ class MongoDbEventStoreAdapter implements Adapter
                 [
                     'uuid' => $eventData['event_id'],
                     'name' => $eventData['event_name'],
-                    'version' => (int)$eventData['version'],
+                    'version' => (int) $eventData['version'],
                     'created_at' => $eventData['created_at'],
-                    'payload' => $payload,
+                    'payload' => $eventData['payload']->toDateTime()->format(\DateTime::ISO8601),
                     'metadata' => $metadata
                 ]
             );
@@ -172,8 +162,8 @@ class MongoDbEventStoreAdapter implements Adapter
             'version' => $e->version(),
             'event_name' => $e->messageName(),
             'event_class' => get_class($e),
-            'payload' => Serializer::serialize($e->payload(), $this->serializerAdapter),
-            'created_at' => $e->createdAt()->format(\DateTime::ISO8601)
+            'payload' => $e->payload(),
+            'created_at' => new \MongoDate($e->createdAt()->getTimestamp()),
         );
 
         foreach ($e->metadata() as $key => $value) {
