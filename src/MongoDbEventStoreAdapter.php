@@ -109,7 +109,7 @@ class MongoDbEventStoreAdapter implements Adapter
             $data[] = $eventData;
         }
 
-        $collection = $this->mongoClient->selectCollection($this->dbName, $this->getCollection($streamName));
+        $collection = $this->getCollection($streamName);
 
         $collection->batchInsert($data, ['safe' => true]);
     }
@@ -134,7 +134,7 @@ class MongoDbEventStoreAdapter implements Adapter
      */
     public function loadEventsByMetadataFrom(StreamName $streamName, array $metadata, $minVersion = null)
     {
-        $collection = $this->mongoClient->selectCollection($this->dbName, $this->getCollection($streamName));
+        $collection = $this->getCollection($streamName);
 
         if (null !== $minVersion) {
             $metadata['version'] = ['$gt' => [$minVersion]];
@@ -177,7 +177,7 @@ class MongoDbEventStoreAdapter implements Adapter
      */
     protected function createIndexesFor(StreamName $streamName, array $metadata)
     {
-        $collection = $this->mongoClient->selectCollection($this->dbName, $this->getCollection($streamName));
+        $collection = $this->getCollection($streamName);
 
         $collection->createIndex(['_id' => 1], ['unique' => true]);
     }
@@ -186,7 +186,7 @@ class MongoDbEventStoreAdapter implements Adapter
      * Get table name for given stream name
      *
      * @param StreamName $streamName
-     * @return string
+     * @return \MongoCollection
      */
     protected function getCollection(StreamName $streamName)
     {
@@ -200,7 +200,10 @@ class MongoDbEventStoreAdapter implements Adapter
             }
         }
 
-        return $collectionName;
+        $collection = $this->mongoClient->selectCollection($this->dbName, $collectionName);
+        $collection->setReadPreference(\MongoClient::RP_PRIMARY);
+
+        return $collection;
     }
 
     /**
