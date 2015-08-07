@@ -111,7 +111,7 @@ class MongoDbEventStoreAdapter implements Adapter
 
         $collection = $this->mongoClient->selectCollection($this->dbName, $this->getCollection($streamName));
 
-        $collection->batchInsert($data);
+        $collection->batchInsert($data, ['safe' => true]);
     }
 
     /**
@@ -140,7 +140,7 @@ class MongoDbEventStoreAdapter implements Adapter
             $metadata['version'] = ['$gt' => [$minVersion]];
         }
 
-        $results = $collection->find($metadata)->sort(['version' => 1]);
+        $results = $collection->find($metadata)->sort(['version' => $collection::ASCENDING]);
 
         $events = [];
 
