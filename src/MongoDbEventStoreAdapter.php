@@ -8,7 +8,6 @@ use Prooph\EventStore\Adapter\Exception\ConfigurationException;
 use Prooph\EventStore\Exception\RuntimeException;
 use Prooph\EventStore\Stream\Stream;
 use Prooph\EventStore\Stream\StreamName;
-use Zend\Serializer\Serializer;
 
 /**
  * EventStore Adapter for MongoDb
@@ -35,7 +34,7 @@ class MongoDbEventStoreAdapter implements Adapter
     /**
      * @var array
      */
-    protected $standardColumns = ['event_id', 'event_name', 'event_class', 'created_at', 'payload', 'version'];
+    protected $standardColumns = ['_id', 'event_name', 'event_class', 'created_at', 'payload', 'version'];
 
     /**
      * @param  array $configuration
@@ -76,6 +75,10 @@ class MongoDbEventStoreAdapter implements Adapter
             );
         }
 
+        $firstEvent = $stream->streamEvents()[0];
+
+        $this->createIndexesFor($stream->streamName(), $firstEvent->metadata());
+
         $this->appendTo($stream->streamName(), $stream->streamEvents());
     }
 
@@ -91,7 +94,7 @@ class MongoDbEventStoreAdapter implements Adapter
 
         foreach ($streamEvents as $e) {
             $eventData = array(
-                'event_id' => $e->uuid()->toString(),
+                '_id' => $e->uuid()->toString(),
                 'version' => $e->version(),
                 'event_name' => $e->messageName(),
                 'event_class' => get_class($e),
@@ -154,7 +157,7 @@ class MongoDbEventStoreAdapter implements Adapter
 
             $events[] = $eventClass::fromArray(
                 [
-                    'uuid' => $eventData['event_id'],
+                    'uuid' => $eventData['_id'],
                     'name' => $eventData['event_name'],
                     'version' => (int) $eventData['version'],
                     'created_at' => $eventData['created_at']->toDateTime()->format(\DateTime::ISO8601),
@@ -165,6 +168,18 @@ class MongoDbEventStoreAdapter implements Adapter
         }
 
         return $events;
+    }
+
+    /**
+     * @param StreamName $streamName
+     * @param array $metadata
+     * @return void
+     */
+    protected function createIndexesFor(StreamName $streamName, array $metadata)
+    {
+        $collection = $this->mongoClient->selectCollection($this->dbName, $this->getCollection($streamName));
+
+        $collection->createIndex(['_id' => 1], ['unique' => true]);
     }
 
     /**
