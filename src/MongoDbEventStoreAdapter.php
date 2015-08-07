@@ -118,7 +118,7 @@ class MongoDbEventStoreAdapter implements Adapter
             $metadata['version'] = ['$gt' => [$minVersion]];
         }
 
-        $results = $collection->find($metadata);
+        $results = $collection->find($metadata)->sort(['version' => 1]);
 
         $events = [];
 
