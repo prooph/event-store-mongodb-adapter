@@ -6,6 +6,7 @@ use Prooph\Common\Messaging\DomainEvent;
 use Prooph\EventStore\Adapter\Adapter;
 use Prooph\EventStore\Adapter\Exception\ConfigurationException;
 use Prooph\EventStore\Exception\RuntimeException;
+use Prooph\EventStore\Exception\StreamNotFoundException;
 use Prooph\EventStore\Stream\Stream;
 use Prooph\EventStore\Stream\StreamName;
 
@@ -129,6 +130,7 @@ class MongoDbEventStoreAdapter implements Adapter
      * @param array $metadata
      * @param null|int $minVersion
      * @return DomainEvent[]
+     * @throws StreamNotFoundException
      */
     public function loadEventsByMetadataFrom(StreamName $streamName, array $metadata, $minVersion = null)
     {
@@ -162,6 +164,15 @@ class MongoDbEventStoreAdapter implements Adapter
                     'payload' => $eventData['payload'],
                     'metadata' => $metadata
                 ]
+            );
+        }
+
+        if (empty($events)) {
+            throw new StreamNotFoundException(
+                sprintf(
+                    'Stream with name %s cannot be found',
+                    $streamName->toString()
+                )
             );
         }
 
