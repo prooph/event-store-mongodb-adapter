@@ -75,9 +75,7 @@ class MongoDbEventStoreAdapter implements Adapter
             );
         }
 
-        $firstEvent = $stream->streamEvents()[0];
-
-        $this->createIndexesFor($stream->streamName(), $firstEvent->metadata());
+        $this->createIndexesFor($stream->streamName());
 
         $this->appendTo($stream->streamName(), $stream->streamEvents());
     }
@@ -172,10 +170,9 @@ class MongoDbEventStoreAdapter implements Adapter
 
     /**
      * @param StreamName $streamName
-     * @param array $metadata
      * @return void
      */
-    protected function createIndexesFor(StreamName $streamName, array $metadata)
+    protected function createIndexesFor(StreamName $streamName)
     {
         $collection = $this->getCollection($streamName);
 
