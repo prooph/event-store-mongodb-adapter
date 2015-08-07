@@ -29,7 +29,7 @@ class MongoDbEventStoreAdapter implements Adapter
      *
      * @var array
      */
-    protected $streamTableMap = array();
+    protected $streamTableMap = [];
 
     /**
      * @var array
