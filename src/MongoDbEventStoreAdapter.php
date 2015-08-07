@@ -87,9 +87,28 @@ class MongoDbEventStoreAdapter implements Adapter
      */
     public function appendTo(StreamName $streamName, array $streamEvents)
     {
-        foreach ($streamEvents as $event) {
-            $this->insertEvent($streamName, $event);
+        $data = [];
+
+        foreach ($streamEvents as $e) {
+            $eventData = array(
+                'event_id' => $e->uuid()->toString(),
+                'version' => $e->version(),
+                'event_name' => $e->messageName(),
+                'event_class' => get_class($e),
+                'payload' => $e->payload(),
+                'created_at' => new \MongoDate($e->createdAt()->getTimestamp()),
+            );
+
+            foreach ($e->metadata() as $key => $value) {
+                $eventData[$key] = (string)$value;
+            }
+
+            $data[] = $eventData;
         }
+
+        $collection = $this->mongoClient->selectCollection($this->dbName, $this->getCollection($streamName));
+
+        $collection->batchInsert($data);
     }
 
     /**
@@ -146,33 +165,6 @@ class MongoDbEventStoreAdapter implements Adapter
         }
 
         return $events;
-    }
-
-    /**
-     * Insert an event
-     *
-     * @param StreamName $streamName
-     * @param DomainEvent $e
-     * @return void
-     */
-    protected function insertEvent(StreamName $streamName, DomainEvent $e)
-    {
-        $eventData = array(
-            'event_id' => $e->uuid()->toString(),
-            'version' => $e->version(),
-            'event_name' => $e->messageName(),
-            'event_class' => get_class($e),
-            'payload' => $e->payload(),
-            'created_at' => new \MongoDate($e->createdAt()->getTimestamp()),
-        );
-
-        foreach ($e->metadata() as $key => $value) {
-            $eventData[$key] = (string)$value;
-        }
-
-        $collection = $this->mongoClient->selectCollection($this->dbName, $this->getCollection($streamName));
-
-        $collection->insert($eventData);
     }
 
     /**
