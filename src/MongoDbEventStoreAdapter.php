@@ -157,8 +157,8 @@ class MongoDbEventStoreAdapter implements Adapter
                     'uuid' => $eventData['event_id'],
                     'name' => $eventData['event_name'],
                     'version' => (int) $eventData['version'],
-                    'created_at' => $eventData['created_at'],
-                    'payload' => $eventData['payload']->toDateTime()->format(\DateTime::ISO8601),
+                    'created_at' => $eventData['created_at']->toDateTime()->format(\DateTime::ISO8601),
+                    'payload' => $eventData['payload'],
                     'metadata' => $metadata
                 ]
             );
