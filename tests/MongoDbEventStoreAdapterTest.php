@@ -194,6 +194,24 @@ class MongoDbEventStoreAdapterTest extends TestCase
     }
 
     /**
+     * @test
+     * @expectedException Prooph\EventStore\Exception\StreamNotFoundException
+     * @expectedExceptionMessage Stream with name Prooph\Model\User cannot be found
+     */
+    public function it_can_rollback_transaction()
+    {
+        $testStream = $this->getTestStream();
+
+        $this->adapter->beginTransaction();
+
+        $this->adapter->create($testStream);
+
+        $this->adapter->rollback();
+
+        $this->adapter->loadEventsByMetadataFrom(new StreamName('Prooph\Model\User'), array('tag' => 'person'));
+    }
+
+    /**
      * @return Stream
      */
     private function getTestStream()
