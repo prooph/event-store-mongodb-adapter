@@ -61,6 +61,28 @@ class MongoDbEventStoreAdapterTest extends TestCase
     }
 
     /**
+     * @test
+     */
+    public function it_appends_events_to_a_stream()
+    {
+        $this->adapter->create($this->getTestStream());
+
+        $streamEvent = UsernameChanged::with(
+            array('name' => 'John Doe'),
+            2
+        );
+
+        DomainEventMetadataWriter::setMetadataKey($streamEvent, 'tag', 'person');
+
+        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), array($streamEvent));
+
+        $stream = $this->adapter->load(new StreamName('Prooph\Model\User'));
+
+        $this->assertEquals('Prooph\Model\User', $stream->streamName()->toString());
+        $this->assertEquals(2, count($stream->streamEvents()));
+    }
+    
+    /**
      * @return Stream
      */
     private function getTestStream()
