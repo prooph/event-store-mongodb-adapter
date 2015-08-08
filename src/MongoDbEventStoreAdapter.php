@@ -180,7 +180,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
         $collection = $this->getCollection();
 
         if (null !== $minVersion) {
-            $metadata['version'] = ['$gt' => [$minVersion]];
+            $metadata['version'] = ['$gte' => $minVersion];
         }
 
         $metadata['expire_at'] = ['$exists' => false];
