@@ -21,19 +21,29 @@ class MongoDbEventStoreAdapterTest extends TestCase
      */
     protected $adapter;
 
+    /**
+     * @var \MongoClient
+     */
+    protected $client;
+
     protected function setUp()
     {
-        $client = new \MongoClient();
+        $this->client = new \MongoClient();
         $dbName = 'mongo_adapter_test';
 
-        $client->selectDB($dbName)->drop();
+        $this->client->selectDB($dbName)->drop();
 
         $options = [
-            'mongo_client' => $client,
+            'mongo_client' => $this->client,
             'db_name'      => $dbName
         ];
 
         $this->adapter = new MongoDbEventStoreAdapter($options);
+    }
+
+    protected function tearDown()
+    {
+        $this->client->selectDB('mongo_adapter_test')->drop();
     }
 
     /**
@@ -111,6 +121,67 @@ class MongoDbEventStoreAdapterTest extends TestCase
         $this->assertEquals(2, count($stream->streamEvents()));
         $this->assertEquals('John Doe', $stream->streamEvents()[0]->payload()['name']);
         $this->assertEquals('Jane Doe', $stream->streamEvents()[1]->payload()['name']);
+    }
+
+    /**
+     * @test
+     * @expectedException Prooph\EventStore\Exception\StreamNotFoundException
+     * @expectedExceptionMessage Stream with name Invalid\Stream\Name cannot be found
+     */
+    public function it_throws_exception_when_no_stream_found()
+    {
+        $this->adapter->load(new StreamName('Invalid\Stream\Name'));
+    }
+
+    /**
+     * @test
+     * @expectedException Prooph\EventStore\Adapter\Exception\ConfigurationException
+     * @expectedExceptionMessage Mongo client configuration is missing
+     */
+    public function it_throws_exception_when_no_mongo_client_set()
+    {
+        new MongoDbEventStoreAdapter([]);
+    }
+
+    /**
+     * @test
+     * @expectedException Prooph\EventStore\Adapter\Exception\ConfigurationException
+     * @expectedExceptionMessage MongoClient must be an instance of MongoClient
+     */
+    public function it_throws_exception_when_invalid_mongo_client_set()
+    {
+        new MongoDbEventStoreAdapter(['mongo_client' => 'foobar']);
+    }
+
+    /**
+     * @test
+     * @expectedException Prooph\EventStore\Adapter\Exception\ConfigurationException
+     * @expectedExceptionMessage Mongo database name is missing
+     */
+    public function it_throws_exception_when_no_db_name_set()
+    {
+        new MongoDbEventStoreAdapter(['mongo_client' => new \MongoClient()]);
+    }
+
+    /**
+     * @test
+     */
+    public function it_creates_custom_collection_name()
+    {
+        $client = new \MongoClient();
+        $dbName = 'mongo_adapter_test';
+
+        $client->selectDB($dbName)->drop();
+
+        $options = [
+            'mongo_client'    => $client,
+            'db_name'         => $dbName,
+            'collection_name' => 'custom_collection'
+        ];
+
+        $this->adapter = new MongoDbEventStoreAdapter($options);
+
+        $this->adapter->create($this->getTestStream());
     }
 
     /**
