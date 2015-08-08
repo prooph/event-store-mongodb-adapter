@@ -5,6 +5,7 @@ namespace Prooph\EventStore\Adapter\MongoDb;
 use Prooph\Common\Messaging\DomainEvent;
 use Prooph\EventStore\Adapter\Adapter;
 use Prooph\EventStore\Adapter\Exception\ConfigurationException;
+use Prooph\EventStore\Adapter\Feature\CanHandleTransaction;
 use Prooph\EventStore\Exception\RuntimeException;
 use Prooph\EventStore\Exception\StreamNotFoundException;
 use Prooph\EventStore\Stream\Stream;
@@ -13,7 +14,7 @@ use Prooph\EventStore\Stream\StreamName;
 /**
  * EventStore Adapter for MongoDb
  */
-class MongoDbEventStoreAdapter implements Adapter
+class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
 {
     /**
      * @var \MongoClient
@@ -26,16 +27,23 @@ class MongoDbEventStoreAdapter implements Adapter
     protected $dbName;
 
     /**
-     * Custom sourceType to table mapping
+     * Name of the mongo db collection
      *
-     * @var array
+     * @var string
      */
-    protected $streamTableMap = [];
+    protected $streamCollectionName = 'event_stream';
 
     /**
      * @var array
      */
-    protected $standardColumns = ['_id', 'event_name', 'event_class', 'created_at', 'payload', 'version'];
+    protected $standardColumns = ['_id', 'stream_name', 'event_name', 'event_class', 'created_at', 'payload', 'version'];
+
+    /**
+     * The transaction id, if currently in transaction, otherwise null
+     *
+     * @var \MongoId|null
+     */
+    protected $transactionId;
 
     /**
      * @param  array $configuration
@@ -51,8 +59,8 @@ class MongoDbEventStoreAdapter implements Adapter
             throw new ConfigurationException('Mongo database name is missing');
         }
 
-        if (isset($configuration['stream_table_map'])) {
-            $this->streamTableMap = $configuration['stream_table_map'];
+        if (isset($configuration['collection_name'])) {
+            $this->streamCollectionName = $configuration['collection_name'];
         }
 
         $this->mongoClient = $configuration['mongo_client'];
@@ -76,7 +84,7 @@ class MongoDbEventStoreAdapter implements Adapter
             );
         }
 
-        $this->createIndexesFor($stream->streamName());
+        $this->createIndexes();
 
         $this->appendTo($stream->streamName(), $stream->streamEvents());
     }
@@ -89,16 +97,16 @@ class MongoDbEventStoreAdapter implements Adapter
      */
     public function appendTo(StreamName $streamName, array $streamEvents)
     {
-        $collection = $this->getCollection($streamName);
+        $collection = $this->getCollection();
 
         if (1 == count($streamEvents)) {
-            $eventData = $this->prepareEventData(reset($streamEvents));
+            $eventData = $this->prepareEventData($streamName, reset($streamEvents));
             $collection->insert($eventData);
         } else {
             $data = [];
 
             foreach ($streamEvents as $streamEvent) {
-                $data[] = $this->prepareEventData($streamEvent);
+                $data[] = $this->prepareEventData($streamName, $streamEvent);
             }
 
             $collection->batchInsert($data);
@@ -106,13 +114,15 @@ class MongoDbEventStoreAdapter implements Adapter
     }
 
     /**
+     * @param StreamName $streamName
      * @param DomainEvent $e
      * @return array
      */
-    protected function prepareEventData(DomainEvent $e)
+    protected function prepareEventData(StreamName $streamName, DomainEvent $e)
     {
         $eventData = [
             '_id'         => $e->uuid()->toString(),
+            'stream_name' => (string) $streamName,
             'version'     => $e->version(),
             'event_name'  => $e->messageName(),
             'event_class' => get_class($e),
@@ -122,6 +132,11 @@ class MongoDbEventStoreAdapter implements Adapter
 
         foreach ($e->metadata() as $key => $value) {
             $eventData[$key] = (string) $value;
+        }
+
+        if (null !== $this->transactionId) {
+            $eventData['transaction_id'] = $this->transactionId;
+            $eventData['expire_at'] = new \MongoDate();
         }
 
         return $eventData;
@@ -148,11 +163,14 @@ class MongoDbEventStoreAdapter implements Adapter
      */
     public function loadEventsByMetadataFrom(StreamName $streamName, array $metadata, $minVersion = null)
     {
-        $collection = $this->getCollection($streamName);
+        $collection = $this->getCollection();
 
         if (null !== $minVersion) {
             $metadata['version'] = ['$gt' => [$minVersion]];
         }
+
+        $metadata['expire_at'] = ['$exists' => false];
+        $metadata['transaction_id'] = ['$exists' => false];
 
         $results = $collection->find($metadata)->sort(['version' => $collection::ASCENDING]);
 
@@ -194,47 +212,97 @@ class MongoDbEventStoreAdapter implements Adapter
     }
 
     /**
-     * @param StreamName $streamName
+     * Begin transaction
+     *
      * @return void
      */
-    protected function createIndexesFor(StreamName $streamName)
+    public function beginTransaction()
     {
-        $collection = $this->getCollection($streamName);
-
-        $collection->createIndex(['_id' => 1], ['unique' => true, 'background' => true]);
+        $this->transactionId = new \MongoId();
     }
 
     /**
-     * Get table name for given stream name
+     * Commit transaction
      *
-     * @param StreamName $streamName
+     * @return void
+     */
+    public function commit()
+    {
+        $this->getCollection()->update(
+            [
+                'transaction_id' => $this->transactionId
+            ],
+            [
+                '$unset' => [
+                    'expire_at' => 1,
+                    'transaction_id' => 1
+                ]
+            ],
+            [
+                'multiple' => true
+            ]
+        );
+
+        $this->transactionId = null;
+    }
+
+    /**
+     * Rollback transaction
+     *
+     * @return void
+     */
+    public function rollback()
+    {
+        $this->getCollection()->remove(
+            [
+                'transaction_id' => $this->transactionId
+            ],
+            [
+                'multiple' => true
+            ]
+        );
+
+        $this->transactionId = null;
+    }
+
+    /**
+     * @return void
+     */
+    protected function createIndexes()
+    {
+        $collection = $this->getCollection();
+
+        $collection->createIndex(
+            [
+                '_id' => 1,
+                'transaction_id' => 1
+            ],
+            [
+                'unique' => true,
+                'background' => true
+            ]
+        );
+
+        $collection->createIndex(
+            [
+                'expire_at' => 1
+            ],
+            [
+                'expireAfterSeconds' => 50
+            ]
+        );
+    }
+
+    /**
+     * Get mongo db stream collection
+     *
      * @return \MongoCollection
      */
-    protected function getCollection(StreamName $streamName)
+    protected function getCollection()
     {
-        if (isset($this->streamTableMap[$streamName->toString()])) {
-            $collectionName = $this->streamTableMap[$streamName->toString()];
-        } else {
-            $collectionName = strtolower($this->getShortStreamName($streamName));
-
-            if (strpos($collectionName, "_stream") === false) {
-                $collectionName.= "_stream";
-            }
-        }
-
-        $collection = $this->mongoClient->selectCollection($this->dbName, $collectionName);
+        $collection = $this->mongoClient->selectCollection($this->dbName, $this->streamCollectionName);
         $collection->setReadPreference(\MongoClient::RP_PRIMARY);
 
         return $collection;
-    }
-
-    /**
-     * @param StreamName $streamName
-     * @return string
-     */
-    protected function getShortStreamName(StreamName $streamName)
-    {
-        $streamName = str_replace('-', '_', $streamName->toString());
-        return join('', array_slice(explode('\\', $streamName), -1));
     }
 }
