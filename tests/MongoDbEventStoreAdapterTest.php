@@ -185,6 +185,15 @@ class MongoDbEventStoreAdapterTest extends TestCase
     }
 
     /**
+     * @test
+     * @expectedException Prooph\EventStore\Exception\RuntimeException
+     */
+    public function it_throws_exception_when_empty_stream_created()
+    {
+        $this->adapter->create(new Stream(new StreamName('Prooph\Model\User'), []));
+    }
+
+    /**
      * @return Stream
      */
     private function getTestStream()
@@ -196,6 +205,6 @@ class MongoDbEventStoreAdapterTest extends TestCase
 
         DomainEventMetadataWriter::setMetadataKey($streamEvent, 'tag', 'person');
 
-        return new Stream(new StreamName('Prooph\Model\User'), array($streamEvent));
+        return new Stream(new StreamName('Prooph\Model\User'), [$streamEvent]);
     }
 }
