@@ -36,7 +36,17 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     /**
      * @var array
      */
-    protected $standardColumns = ['_id', 'stream_name', 'event_name', 'event_class', 'created_at', 'payload', 'version'];
+    protected $standardColumns = [
+        '_id',
+        'created_at',
+        'event_name',
+        'event_class',
+        'expire_at',
+        'payload',
+        'stream_name',
+        'transaction_id',
+        'version'
+    ];
 
     /**
      * The transaction id, if currently in transaction, otherwise null
@@ -53,6 +63,10 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     {
         if (!isset($configuration['mongo_client'])) {
             throw new ConfigurationException('Mongo client configuration is missing');
+        }
+
+        if (!$configuration['mongo_client'] instanceof \MongoClient) {
+            throw new ConfigurationException('MongoClient must be an instance of MongoClient');
         }
 
         if (!isset($configuration['db_name'])) {
@@ -127,7 +141,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
             'event_name'  => $e->messageName(),
             'event_class' => get_class($e),
             'payload'     => $e->payload(),
-            'created_at'  => new \MongoDate($e->createdAt()->getTimestamp())
+            'created_at'  => new \MongoDate($e->createdAt()->getTimestamp()),
         ];
 
         foreach ($e->metadata() as $key => $value) {
@@ -187,12 +201,15 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
                 }
             }
 
+            $createdAt = new \DateTime();
+            $createdAt->setTimestamp($eventData['created_at']->sec);
+
             $events[] = $eventClass::fromArray(
                 [
                     'uuid' => $eventData['_id'],
                     'name' => $eventData['event_name'],
                     'version' => (int) $eventData['version'],
-                    'created_at' => $eventData['created_at']->toDateTime()->format(\DateTime::ISO8601),
+                    'created_at' => $createdAt->format(\DateTime::ISO8601),
                     'payload' => $eventData['payload'],
                     'metadata' => $metadata
                 ]
