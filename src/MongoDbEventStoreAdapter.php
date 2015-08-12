@@ -57,7 +57,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
 
     /**
      * @param  array $configuration
-     * @throws \Prooph\EventStore\Adapter\Exception\ConfigurationException
+     * @throws ConfigurationException
      */
     public function __construct(array $configuration)
     {
@@ -83,7 +83,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
 
     /**
      * @param Stream $stream
-     * @throws \Prooph\EventStore\Exception\RuntimeException If creation of stream fails
+     * @throws RuntimeException If creation of stream fails
      * @return void
      */
     public function create(Stream $stream)
@@ -106,7 +106,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     /**
      * @param StreamName $streamName
      * @param DomainEvent[] $streamEvents
-     * @throws \Prooph\EventStore\Exception\StreamNotFoundException If stream does not exist
+     * @throws StreamNotFoundException If stream does not exist
      * @return void
      */
     public function appendTo(StreamName $streamName, array $streamEvents)
