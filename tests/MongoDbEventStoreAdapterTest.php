@@ -59,7 +59,7 @@ class MongoDbEventStoreAdapterTest extends TestCase
 
         $this->adapter->commit();
 
-        $streamEvents = $this->adapter->loadEventsByMetadataFrom(new StreamName('Prooph\Model\User'), array('tag' => 'person'));
+        $streamEvents = $this->adapter->loadEventsByMetadataFrom(new StreamName('Prooph\Model\User'), ['tag' => 'person']);
 
         $this->assertEquals(1, count($streamEvents));
 
@@ -78,13 +78,13 @@ class MongoDbEventStoreAdapterTest extends TestCase
         $this->adapter->create($this->getTestStream());
 
         $streamEvent = UsernameChanged::with(
-            array('name' => 'John Doe'),
+            ['name' => 'John Doe'],
             2
         );
 
         DomainEventMetadataWriter::setMetadataKey($streamEvent, 'tag', 'person');
 
-        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), array($streamEvent));
+        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), [$streamEvent]);
 
         $stream = $this->adapter->load(new StreamName('Prooph\Model\User'));
 
@@ -100,20 +100,20 @@ class MongoDbEventStoreAdapterTest extends TestCase
         $this->adapter->create($this->getTestStream());
 
         $streamEvent1 = UsernameChanged::with(
-            array('name' => 'John Doe'),
+            ['name' => 'John Doe'],
             2
         );
 
         DomainEventMetadataWriter::setMetadataKey($streamEvent1, 'tag', 'person');
 
         $streamEvent2 = UsernameChanged::with(
-            array('name' => 'Jane Doe'),
+            ['name' => 'Jane Doe'],
             2
         );
 
         DomainEventMetadataWriter::setMetadataKey($streamEvent2, 'tag', 'person');
 
-        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), array($streamEvent1, $streamEvent2));
+        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), [$streamEvent1, $streamEvent2]);
 
         $stream = $this->adapter->load(new StreamName('Prooph\Model\User'), 2);
 
@@ -208,7 +208,7 @@ class MongoDbEventStoreAdapterTest extends TestCase
 
         $this->adapter->rollback();
 
-        $this->adapter->loadEventsByMetadataFrom(new StreamName('Prooph\Model\User'), array('tag' => 'person'));
+        $this->adapter->loadEventsByMetadataFrom(new StreamName('Prooph\Model\User'), ['tag' => 'person']);
     }
 
     /**
@@ -217,7 +217,7 @@ class MongoDbEventStoreAdapterTest extends TestCase
     private function getTestStream()
     {
         $streamEvent = UserCreated::with(
-            array('name' => 'Max Mustermann', 'email' => 'contact@prooph.de'),
+            ['name' => 'Max Mustermann', 'email' => 'contact@prooph.de'],
             1
         );
 

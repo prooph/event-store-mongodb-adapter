@@ -163,7 +163,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function load(StreamName $streamName, $minVersion = null)
     {
-        $events = $this->loadEventsByMetadataFrom($streamName, array(), $minVersion);
+        $events = $this->loadEventsByMetadataFrom($streamName, [], $minVersion);
 
         return new Stream($streamName, $events);
     }
@@ -191,7 +191,6 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
         $events = [];
 
         foreach ($results as $eventData) {
-
             $eventClass = $eventData['event_class'];
 
             //Add metadata stored in table
