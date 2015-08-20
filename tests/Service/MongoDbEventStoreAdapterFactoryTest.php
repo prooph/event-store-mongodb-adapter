@@ -23,7 +23,7 @@ class MongoDbEventStoreAdapterFactoryTest extends TestCase
         $collectionName = 'stream_collection';
 
         $config = [];
-        $config['proophessor']['event_store']['adapter']['options'] = [
+        $config['prooph']['event_store']['adapter']['options'] = [
             'mongo_connection_alias' => 'mongo_connection',
             'db_name' => $dbName,
             'collection_name' => $collectionName
@@ -47,7 +47,7 @@ class MongoDbEventStoreAdapterFactoryTest extends TestCase
     public function it_throws_exception_if_db_name_is_missing()
     {
         $config = [];
-        $config['proophessor']['event_store']['adapter']['options'] = [
+        $config['prooph']['event_store']['adapter']['options'] = [
         ];
 
         $mock = $this->getMockForAbstractClass(ContainerInterface::class);
@@ -65,7 +65,7 @@ class MongoDbEventStoreAdapterFactoryTest extends TestCase
     public function it_throws_exception_if_adapter_config_missing()
     {
         $config = [];
-        $config['proophessor']['event_store'] = [];
+        $config['prooph']['event_store'] = [];
 
         $mock = $this->getMockForAbstractClass(ContainerInterface::class);
         $mock->expects($this->at(0))->method('get')->with('configuration')->will($this->returnValue($config));
