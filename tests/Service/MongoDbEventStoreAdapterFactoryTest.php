@@ -30,7 +30,7 @@ class MongoDbEventStoreAdapterFactoryTest extends TestCase
         ];
 
         $mock = $this->getMockForAbstractClass(ContainerInterface::class);
-        $mock->expects($this->at(0))->method('get')->with('configuration')->will($this->returnValue($config));
+        $mock->expects($this->at(0))->method('get')->with('config')->will($this->returnValue($config));
         $mock->expects($this->at(1))->method('get')->with('mongo_connection')->will($this->returnValue($client));
 
         $factory = new MongoDbEventStoreAdapterFactory();
@@ -51,7 +51,7 @@ class MongoDbEventStoreAdapterFactoryTest extends TestCase
         ];
 
         $mock = $this->getMockForAbstractClass(ContainerInterface::class);
-        $mock->expects($this->at(0))->method('get')->with('configuration')->will($this->returnValue($config));
+        $mock->expects($this->at(0))->method('get')->with('config')->will($this->returnValue($config));
 
         $factory = new MongoDbEventStoreAdapterFactory();
         $factory($mock);
@@ -68,7 +68,7 @@ class MongoDbEventStoreAdapterFactoryTest extends TestCase
         $config['prooph']['event_store'] = [];
 
         $mock = $this->getMockForAbstractClass(ContainerInterface::class);
-        $mock->expects($this->at(0))->method('get')->with('configuration')->will($this->returnValue($config));
+        $mock->expects($this->at(0))->method('get')->with('config')->will($this->returnValue($config));
 
         $factory = new MongoDbEventStoreAdapterFactory();
         $factory($mock);
