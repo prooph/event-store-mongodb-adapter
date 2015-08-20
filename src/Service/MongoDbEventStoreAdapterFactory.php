@@ -18,15 +18,15 @@ final class MongoDbEventStoreAdapterFactory
      */
     public function __invoke(ContainerInterface $container)
     {
-        $config = $container->get('configuration');
+        $config = $container->get('config');
 
-        if (!isset($config['proophessor']['event_store']['adapter'])) {
+        if (!isset($config['prooph']['event_store']['adapter'])) {
             throw ConfigurationException::configurationError(
                 'Missing adapter configuration in proophessor event_store configuration'
             );
         }
 
-        $adapterOptions = isset($config['proophessor']['event_store']['adapter']['options'])
+        $adapterOptions = isset($config['prooph']['event_store']['adapter']['options'])
             ? $config['proophessor']['event_store']['adapter']['options']
             : [];
 
