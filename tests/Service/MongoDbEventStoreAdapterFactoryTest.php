@@ -60,7 +60,7 @@ class MongoDbEventStoreAdapterFactoryTest extends TestCase
     /**
      * @test
      * @expectedException Prooph\EventStore\Configuration\Exception\ConfigurationException
-     * @expectedExceptionMessage Missing adapter configuration in proophessor event_store configuration
+     * @expectedExceptionMessage Missing adapter configuration in prooph event_store configuration
      */
     public function it_throws_exception_if_adapter_config_missing()
     {
