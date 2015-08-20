@@ -2,13 +2,13 @@
 
 namespace Prooph\EventStore\Adapter\MongDbTest;
 
+use PHPUnit_Framework_TestCase as TestCase;
 use Prooph\EventStore\Adapter\MongoDb\MongoDbEventStoreAdapter;
 use Prooph\EventStore\Stream\DomainEventMetadataWriter;
 use Prooph\EventStore\Stream\Stream;
 use Prooph\EventStore\Stream\StreamName;
 use Prooph\EventStoreTest\Mock\UserCreated;
 use Prooph\EventStoreTest\Mock\UsernameChanged;
-use Prooph\EventStoreTest\TestCase;
 
 /**
  * Class MongoDbEventStoreAdapterTest
