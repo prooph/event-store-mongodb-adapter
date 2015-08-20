@@ -22,12 +22,12 @@ final class MongoDbEventStoreAdapterFactory
 
         if (!isset($config['prooph']['event_store']['adapter'])) {
             throw ConfigurationException::configurationError(
-                'Missing adapter configuration in proophessor event_store configuration'
+                'Missing adapter configuration in prooph event_store configuration'
             );
         }
 
         $adapterOptions = isset($config['prooph']['event_store']['adapter']['options'])
-            ? $config['proophessor']['event_store']['adapter']['options']
+            ? $config['prooph']['event_store']['adapter']['options']
             : [];
 
         $mongoClient = isset($adapterOptions['mongo_connection_alias'])
