@@ -2,13 +2,13 @@
 
 namespace Prooph\EventStore\Adapter\MongDbTest;
 
+use PHPUnit_Framework_TestCase as TestCase;
 use Prooph\EventStore\Adapter\MongoDb\MongoDbEventStoreAdapter;
 use Prooph\EventStore\Stream\DomainEventMetadataWriter;
 use Prooph\EventStore\Stream\Stream;
 use Prooph\EventStore\Stream\StreamName;
 use Prooph\EventStoreTest\Mock\UserCreated;
 use Prooph\EventStoreTest\Mock\UsernameChanged;
-use Prooph\EventStoreTest\TestCase;
 
 /**
  * Class MongoDbEventStoreAdapterTest
@@ -33,12 +33,7 @@ class MongoDbEventStoreAdapterTest extends TestCase
 
         $this->client->selectDB($dbName)->drop();
 
-        $options = [
-            'mongo_client' => $this->client,
-            'db_name'      => $dbName
-        ];
-
-        $this->adapter = new MongoDbEventStoreAdapter($options);
+        $this->adapter = new MongoDbEventStoreAdapter($this->client, $dbName);
     }
 
     protected function tearDown()
@@ -136,31 +131,11 @@ class MongoDbEventStoreAdapterTest extends TestCase
     /**
      * @test
      * @expectedException Prooph\EventStore\Adapter\Exception\ConfigurationException
-     * @expectedExceptionMessage Mongo client configuration is missing
-     */
-    public function it_throws_exception_when_no_mongo_client_set()
-    {
-        new MongoDbEventStoreAdapter([]);
-    }
-
-    /**
-     * @test
-     * @expectedException Prooph\EventStore\Adapter\Exception\ConfigurationException
-     * @expectedExceptionMessage MongoClient must be an instance of MongoClient
-     */
-    public function it_throws_exception_when_invalid_mongo_client_set()
-    {
-        new MongoDbEventStoreAdapter(['mongo_client' => 'foobar']);
-    }
-
-    /**
-     * @test
-     * @expectedException Prooph\EventStore\Adapter\Exception\ConfigurationException
      * @expectedExceptionMessage Mongo database name is missing
      */
     public function it_throws_exception_when_no_db_name_set()
     {
-        new MongoDbEventStoreAdapter(['mongo_client' => new \MongoClient()]);
+        new MongoDbEventStoreAdapter(new \MongoClient(), null);
     }
 
     /**
@@ -173,13 +148,7 @@ class MongoDbEventStoreAdapterTest extends TestCase
 
         $client->selectDB($dbName)->drop();
 
-        $options = [
-            'mongo_client'    => $client,
-            'db_name'         => $dbName,
-            'collection_name' => 'custom_collection'
-        ];
-
-        $this->adapter = new MongoDbEventStoreAdapter($options);
+        $this->adapter = new MongoDbEventStoreAdapter($client, $dbName, 'custom_collection');
 
         $this->adapter->create($this->getTestStream());
     }

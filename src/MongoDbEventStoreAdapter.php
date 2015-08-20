@@ -56,29 +56,22 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     protected $transactionId;
 
     /**
-     * @param  array $configuration
-     * @throws ConfigurationException
+     * @param \MongoClient $mongoClient
+     * @param string $dbName
+     * @param string|null $streamCollectionName
      */
-    public function __construct(array $configuration)
+    public function __construct(\MongoClient $mongoClient, $dbName, $streamCollectionName = null)
     {
-        if (!isset($configuration['mongo_client'])) {
-            throw new ConfigurationException('Mongo client configuration is missing');
-        }
-
-        if (!$configuration['mongo_client'] instanceof \MongoClient) {
-            throw new ConfigurationException('MongoClient must be an instance of MongoClient');
-        }
-
-        if (!isset($configuration['db_name'])) {
+        if (!is_string($dbName) || 0 == strlen($dbName)) {
             throw new ConfigurationException('Mongo database name is missing');
         }
 
-        if (isset($configuration['collection_name'])) {
-            $this->streamCollectionName = $configuration['collection_name'];
-        }
+        $this->mongoClient = $mongoClient;
+        $this->dbName      = $dbName;
 
-        $this->mongoClient = $configuration['mongo_client'];
-        $this->dbName      = $configuration['db_name'];
+        if ($streamCollectionName) {
+            $this->streamCollectionName = $streamCollectionName;
+        }
     }
 
     /**
