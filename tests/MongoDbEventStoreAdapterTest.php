@@ -112,6 +112,7 @@ class MongoDbEventStoreAdapterTest extends TestCase
 
         $this->adapter->appendTo(new StreamName('Prooph\Model\User'), [$streamEvent1, $streamEvent2]);
 
+        //die('dd');
         $stream = $this->adapter->load(new StreamName('Prooph\Model\User'), 2);
 
         $this->assertEquals('Prooph\Model\User', $stream->streamName()->toString());

@@ -13,7 +13,7 @@ use Prooph\EventStore\Stream\Stream;
 use Prooph\EventStore\Stream\StreamName;
 
 /**
- * EventStore Adapter for MongoDb
+ * EventStore Adapter for Mongo DB
  */
 class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
 {
@@ -28,9 +28,19 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     protected $collection;
 
     /**
+     * @var \MongoDeleteBatch
+     */
+    protected $deleteBatch;
+
+    /**
      * @var \MongoInsertBatch
      */
     protected $insertBatch;
+
+    /**
+     * @var \MongoUpdateBatch
+     */
+    protected $updateBatch;
 
     /**
      * @var string
@@ -67,9 +77,15 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     protected $transactionId;
 
     /**
+     * Mongo DB write concern
+     * The default options can be overridden with the constructor
+     *
      * @var array
      */
-    protected $writeConcern;
+    protected $writeConcern = [
+        'w' => 1,
+        'j' => true
+    ];
 
     /**
      * @param \MongoClient $mongoClient
@@ -92,7 +108,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
             $this->streamCollectionName = $streamCollectionName;
         }
 
-        $this->writeConcern = array_merge(['w' => 1, 'j' => true], $writeConcern);
+        $this->writeConcern = array_merge($this->writeConcern, $writeConcern);
     }
 
     /**
@@ -125,20 +141,12 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function appendTo(StreamName $streamName, array $streamEvents)
     {
-
-
-        if (1 == count($streamEvents)) {
-            $eventData = $this->prepareEventData($streamName, reset($streamEvents));
-            $this->getCollection()->insert($eventData, $this->writeConcern);
-        } else {
-            $data = [];
-
-            foreach ($streamEvents as $streamEvent) {
-                $data[] = $this->prepareEventData($streamName, $streamEvent);
-            }
-
+        foreach ($streamEvents as $streamEvent) {
+            $data = $this->prepareEventData($streamName, $streamEvent);
             $this->getInsertBatch()->add($data);
         }
+
+        $this->getInsertBatch()->execute();
     }
 
     /**
@@ -258,21 +266,22 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function commit()
     {
-        $writeConcern = $this->writeConcern;
-        $writeConcern['multiple'] = true;
-
-        $this->getCollection()->update(
+        $this->getUpdateBatch()->add(
             [
-                'transaction_id' => $this->transactionId
-            ],
-            [
-                '$unset' => [
-                    'expire_at' => 1,
-                    'transaction_id' => 1
-                ]
-            ],
-            $writeConcern
+                'q' => [
+                    'transaction_id' => $this->transactionId
+                ],
+                'u' => [
+                    '$unset' => [
+                        'expire_at' => 1,
+                        'transaction_id' => 1
+                    ]
+                ],
+                'multi' => true
+            ]
         );
+
+        $this->getUpdateBatch()->execute();
 
         $this->transactionId = null;
     }
@@ -284,15 +293,14 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function rollback()
     {
-        $writeConcern = $this->writeConcern;
-        $writeConcern['multiple'] = true;
-
-        $this->getCollection()->remove(
-            [
+        $this->getDeleteBatch()->add([
+            'q' => [
                 'transaction_id' => $this->transactionId
             ],
-            $writeConcern
-        );
+            'limit' => 0
+        ]);
+
+        $this->getDeleteBatch()->execute();
 
         $this->transactionId = null;
     }
@@ -320,7 +328,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
                 'expire_at' => 1
             ],
             [
-                'expireAfterSeconds' => 50
+                'expireAfterSeconds' => 50,
             ]
         );
     }
@@ -352,5 +360,33 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
         }
 
         return $this->insertBatch;
+    }
+
+    /**
+     * Get mongo db update batch
+     *
+     * @return \MongoUpdateBatch
+     */
+    protected function getUpdateBatch()
+    {
+        if (null === $this->updateBatch) {
+            $this->updateBatch = new \MongoUpdateBatch($this->getCollection(), $this->writeConcern);
+        }
+
+        return $this->updateBatch;
+    }
+
+    /**
+     * Get mongo db delete batch
+     *
+     * @return \MongoDeleteBatch
+     */
+    protected function getDeleteBatch()
+    {
+        if (null === $this->deleteBatch) {
+            $this->deleteBatch = new \MongoDeleteBatch($this->getCollection(), $this->writeConcern);
+        }
+
+        return $this->deleteBatch;
     }
 }
