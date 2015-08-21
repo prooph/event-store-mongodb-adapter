@@ -1,6 +1,6 @@
 <?php
 
-namespace Prooph\EventStore\Adapter\MongoDb\Service;
+namespace Prooph\EventStore\Adapter\MongoDb\Container;
 
 use Interop\Container\ContainerInterface;
 use Prooph\EventStore\Adapter\MongoDb\MongoDbEventStoreAdapter;
@@ -8,7 +8,7 @@ use Prooph\EventStore\Configuration\Exception\ConfigurationException;
 
 /**
  * Class MongoDbEventStoreAdapterFactory
- * @package Prooph\EventStore\Adapter\MongoDb\Service
+ * @package Prooph\EventStore\Adapter\MongoDb\Container
  */
 final class MongoDbEventStoreAdapterFactory
 {
@@ -42,8 +42,18 @@ final class MongoDbEventStoreAdapterFactory
 
         $dbName = $adapterOptions['db_name'];
 
+        $writeConcern = isset($adapterOptions['write_concern']) ? $adapterOptions['write_concern'] : [];
+
         $streamCollectionName = isset($adapterOptions['collection_name']) ? $adapterOptions['collection_name'] : null;
 
-        return new MongoDbEventStoreAdapter($mongoClient, $dbName, $streamCollectionName);
+        $timeout = isset($adapterOptions['transaction_timeout']) ? $adapterOptions['transaction_timeout'] : null;
+
+        return new MongoDbEventStoreAdapter(
+            $mongoClient,
+            $dbName,
+            $writeConcern,
+            $streamCollectionName,
+            $timeout
+        );
     }
 }

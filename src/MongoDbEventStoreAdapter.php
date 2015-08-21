@@ -2,9 +2,9 @@
 
 namespace Prooph\EventStore\Adapter\MongoDb;
 
+use Assert\Assertion;
 use Prooph\Common\Messaging\DomainEvent;
 use Prooph\EventStore\Adapter\Adapter;
-use Prooph\EventStore\Adapter\Exception\ConfigurationException;
 use Prooph\EventStore\Adapter\Feature\CanHandleTransaction;
 use Prooph\EventStore\Exception\RuntimeException;
 use Prooph\EventStore\Exception\StreamNotFoundException;
@@ -12,7 +12,7 @@ use Prooph\EventStore\Stream\Stream;
 use Prooph\EventStore\Stream\StreamName;
 
 /**
- * EventStore Adapter for MongoDb
+ * EventStore Adapter for Mongo DB
  */
 class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
 {
@@ -20,6 +20,26 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      * @var \MongoClient
      */
     protected $mongoClient;
+
+    /**
+     * @var \MongoCollection
+     */
+    protected $collection;
+
+    /**
+     * @var \MongoDeleteBatch
+     */
+    protected $deleteBatch;
+
+    /**
+     * @var \MongoInsertBatch
+     */
+    protected $insertBatch;
+
+    /**
+     * @var \MongoUpdateBatch
+     */
+    protected $updateBatch;
 
     /**
      * @var string
@@ -56,21 +76,56 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     protected $transactionId;
 
     /**
+     * Mongo DB write concern
+     * The default options can be overridden with the constructor
+     *
+     * @var array
+     */
+    protected $writeConcern = [
+        'w' => 1,
+        'j' => true
+    ];
+
+    /**
+     * Transaction timeout in seconds
+     *
+     * @var int
+     */
+    protected $transactionTimeout = 50;
+
+    /**
      * @param \MongoClient $mongoClient
      * @param string $dbName
+     * @param array $writeConcern
      * @param string|null $streamCollectionName
+     * @param int $transactionTimeout
      */
-    public function __construct(\MongoClient $mongoClient, $dbName, $streamCollectionName = null)
-    {
-        if (!is_string($dbName) || 0 == strlen($dbName)) {
-            throw new ConfigurationException('Mongo database name is missing');
-        }
+    public function __construct(
+        \MongoClient $mongoClient,
+        $dbName,
+        array $writeConcern = null,
+        $streamCollectionName = null,
+        $transactionTimeout = null
+    ) {
+        Assertion::minLength($dbName, 1, 'Mongo database name is missing');
 
         $this->mongoClient = $mongoClient;
         $this->dbName      = $dbName;
 
-        if ($streamCollectionName) {
+        if (null !== $streamCollectionName) {
+            Assertion::minLength($streamCollectionName, 1, 'Stream collection name must be a string with min length 1');
+
             $this->streamCollectionName = $streamCollectionName;
+        }
+
+        if (null !== $writeConcern) {
+            $this->writeConcern = $writeConcern;
+        }
+
+        if (null !== $transactionTimeout) {
+            Assertion::min($transactionTimeout, 1, 'Transaction timeout must be a positive integer');
+
+            $this->transactionTimeout = $transactionTimeout;
         }
     }
 
@@ -104,20 +159,12 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function appendTo(StreamName $streamName, array $streamEvents)
     {
-        $collection = $this->getCollection();
-
-        if (1 == count($streamEvents)) {
-            $eventData = $this->prepareEventData($streamName, reset($streamEvents));
-            $collection->insert($eventData);
-        } else {
-            $data = [];
-
-            foreach ($streamEvents as $streamEvent) {
-                $data[] = $this->prepareEventData($streamName, $streamEvent);
-            }
-
-            $collection->batchInsert($data);
+        foreach ($streamEvents as $streamEvent) {
+            $data = $this->prepareEventData($streamName, $streamEvent);
+            $this->getInsertBatch()->add($data);
         }
+
+        $this->getInsertBatch()->execute();
     }
 
     /**
@@ -227,6 +274,10 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function beginTransaction()
     {
+        if (null !== $this->transactionId) {
+            throw new \RuntimeException('Transaction already startet');
+        }
+
         $this->transactionId = new \MongoId();
     }
 
@@ -237,20 +288,22 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function commit()
     {
-        $this->getCollection()->update(
+        $this->getUpdateBatch()->add(
             [
-                'transaction_id' => $this->transactionId
-            ],
-            [
-                '$unset' => [
-                    'expire_at' => 1,
-                    'transaction_id' => 1
-                ]
-            ],
-            [
-                'multiple' => true
+                'q' => [
+                    'transaction_id' => $this->transactionId
+                ],
+                'u' => [
+                    '$unset' => [
+                        'expire_at' => 1,
+                        'transaction_id' => 1
+                    ]
+                ],
+                'multi' => true
             ]
         );
+
+        $this->getUpdateBatch()->execute();
 
         $this->transactionId = null;
     }
@@ -262,14 +315,14 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function rollback()
     {
-        $this->getCollection()->remove(
-            [
+        $this->getDeleteBatch()->add([
+            'q' => [
                 'transaction_id' => $this->transactionId
             ],
-            [
-                'multiple' => true
-            ]
-        );
+            'limit' => 0
+        ]);
+
+        $this->getDeleteBatch()->execute();
 
         $this->transactionId = null;
     }
@@ -297,7 +350,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
                 'expire_at' => 1
             ],
             [
-                'expireAfterSeconds' => 50
+                'expireAfterSeconds' => $this->transactionTimeout,
             ]
         );
     }
@@ -309,9 +362,53 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     protected function getCollection()
     {
-        $collection = $this->mongoClient->selectCollection($this->dbName, $this->streamCollectionName);
-        $collection->setReadPreference(\MongoClient::RP_PRIMARY);
+        if (null === $this->collection) {
+            $this->collection = $this->mongoClient->selectCollection($this->dbName, $this->streamCollectionName);
+            $this->collection->setReadPreference(\MongoClient::RP_PRIMARY);
+        }
 
-        return $collection;
+        return $this->collection;
+    }
+
+    /**
+     * Get mongo db insert batch
+     *
+     * @return \MongoInsertBatch
+     */
+    protected function getInsertBatch()
+    {
+        if (null === $this->insertBatch) {
+            $this->insertBatch = new \MongoInsertBatch($this->getCollection(), $this->writeConcern);
+        }
+
+        return $this->insertBatch;
+    }
+
+    /**
+     * Get mongo db update batch
+     *
+     * @return \MongoUpdateBatch
+     */
+    protected function getUpdateBatch()
+    {
+        if (null === $this->updateBatch) {
+            $this->updateBatch = new \MongoUpdateBatch($this->getCollection(), $this->writeConcern);
+        }
+
+        return $this->updateBatch;
+    }
+
+    /**
+     * Get mongo db delete batch
+     *
+     * @return \MongoDeleteBatch
+     */
+    protected function getDeleteBatch()
+    {
+        if (null === $this->deleteBatch) {
+            $this->deleteBatch = new \MongoDeleteBatch($this->getCollection(), $this->writeConcern);
+        }
+
+        return $this->deleteBatch;
     }
 }

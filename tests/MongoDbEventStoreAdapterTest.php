@@ -38,7 +38,9 @@ class MongoDbEventStoreAdapterTest extends TestCase
 
     protected function tearDown()
     {
-        $this->client->selectDB('mongo_adapter_test')->drop();
+        if (null !== $this->client) {
+            $this->client->selectDB('mongo_adapter_test')->drop();
+        }
     }
 
     /**
@@ -130,7 +132,7 @@ class MongoDbEventStoreAdapterTest extends TestCase
 
     /**
      * @test
-     * @expectedException Prooph\EventStore\Adapter\Exception\ConfigurationException
+     * @expectedException Assert\InvalidArgumentException
      * @expectedExceptionMessage Mongo database name is missing
      */
     public function it_throws_exception_when_no_db_name_set()
@@ -148,7 +150,7 @@ class MongoDbEventStoreAdapterTest extends TestCase
 
         $client->selectDB($dbName)->drop();
 
-        $this->adapter = new MongoDbEventStoreAdapter($client, $dbName, 'custom_collection');
+        $this->adapter = new MongoDbEventStoreAdapter($client, $dbName, [], 'custom_collection');
 
         $this->adapter->create($this->getTestStream());
     }
@@ -160,6 +162,24 @@ class MongoDbEventStoreAdapterTest extends TestCase
     public function it_throws_exception_when_empty_stream_created()
     {
         $this->adapter->create(new Stream(new StreamName('Prooph\Model\User'), []));
+    }
+
+    /**
+     * @test
+     * @expectedException Assert\InvalidArgumentException
+     * @expectedExceptionMessage Transaction timeout must be a positive integer
+     */
+    public function it_throws_exception_when_invalid_transaction_timeout_given()
+    {
+        new MongoDbEventStoreAdapter(new \MongoClient(), 'mongo_adapter_test', null, null, 'invalid');
+    }
+
+    /**
+     * @test
+     */
+    public function it_accepts_custom_transaction_timeout()
+    {
+        new MongoDbEventStoreAdapter(new \MongoClient(), 'mongo_adapter_test', null, null, 10);
     }
 
     /**
@@ -178,6 +198,42 @@ class MongoDbEventStoreAdapterTest extends TestCase
         $this->adapter->rollback();
 
         $this->adapter->loadEventsByMetadataFrom(new StreamName('Prooph\Model\User'), ['tag' => 'person']);
+    }
+
+    /**
+     * @test
+     * @expectedException Prooph\EventStore\Exception\StreamNotFoundException
+     * @expectedExceptionMessage Stream with name Prooph\Model\User cannot be found
+     */
+    public function it_rolls_back_transaction_after_timeout()
+    {
+        $this->client = new \MongoClient();
+        $dbName = 'mongo_adapter_test';
+
+        $this->client->selectDB($dbName)->drop();
+
+        $this->adapter = new MongoDbEventStoreAdapter($this->client, $dbName, null, null, 3);
+
+        $testStream = $this->getTestStream();
+
+        $this->adapter->beginTransaction();
+
+        $this->adapter->create($testStream);
+
+        sleep(3);
+
+        $this->adapter->loadEventsByMetadataFrom(new StreamName('Prooph\Model\User'), ['tag' => 'person']);
+    }
+
+    /**
+     * @test
+     * @expectedException RuntimeException
+     * @expectedExceptionMessage Transaction already startet
+     */
+    public function it_throws_exception_when_second_transaction_started()
+    {
+        $this->adapter->beginTransaction();
+        $this->adapter->beginTransaction();
     }
 
     /**
