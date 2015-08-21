@@ -44,6 +44,6 @@ final class MongoDbEventStoreAdapterFactory
 
         $streamCollectionName = isset($adapterOptions['collection_name']) ? $adapterOptions['collection_name'] : null;
 
-        return new MongoDbEventStoreAdapter($mongoClient, $dbName, $streamCollectionName);
+        return new MongoDbEventStoreAdapter($mongoClient, $dbName, [], $streamCollectionName);
     }
 }

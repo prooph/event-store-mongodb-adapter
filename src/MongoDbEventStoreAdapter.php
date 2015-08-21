@@ -2,6 +2,7 @@
 
 namespace Prooph\EventStore\Adapter\MongoDb;
 
+use Assert\Assertion;
 use Prooph\Common\Messaging\DomainEvent;
 use Prooph\EventStore\Adapter\Adapter;
 use Prooph\EventStore\Adapter\Exception\ConfigurationException;
@@ -58,13 +59,16 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     /**
      * @param \MongoClient $mongoClient
      * @param string $dbName
+     * @param array $writeConcern
      * @param string|null $streamCollectionName
      */
-    public function __construct(\MongoClient $mongoClient, $dbName, $streamCollectionName = null)
-    {
-        if (!is_string($dbName) || 0 == strlen($dbName)) {
-            throw new ConfigurationException('Mongo database name is missing');
-        }
+    public function __construct(
+        \MongoClient $mongoClient,
+        $dbName,
+        array $writeConcern = [],
+        $streamCollectionName = null
+    ) {
+        Assertion::minLength($dbName, 1, 'Mongo database name is missing');
 
         $this->mongoClient = $mongoClient;
         $this->dbName      = $dbName;

@@ -132,7 +132,7 @@ class MongoDbEventStoreAdapterTest extends TestCase
 
     /**
      * @test
-     * @expectedException Prooph\EventStore\Adapter\Exception\ConfigurationException
+     * @expectedException Assert\InvalidArgumentException
      * @expectedExceptionMessage Mongo database name is missing
      */
     public function it_throws_exception_when_no_db_name_set()
@@ -150,7 +150,7 @@ class MongoDbEventStoreAdapterTest extends TestCase
 
         $client->selectDB($dbName)->drop();
 
-        $this->adapter = new MongoDbEventStoreAdapter($client, $dbName, 'custom_collection');
+        $this->adapter = new MongoDbEventStoreAdapter($client, $dbName, [], 'custom_collection');
 
         $this->adapter->create($this->getTestStream());
     }
