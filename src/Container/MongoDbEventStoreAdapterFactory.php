@@ -1,6 +1,6 @@
 <?php
 
-namespace Prooph\EventStore\Adapter\MongoDb\Service;
+namespace Prooph\EventStore\Adapter\MongoDb\Container;
 
 use Interop\Container\ContainerInterface;
 use Prooph\EventStore\Adapter\MongoDb\MongoDbEventStoreAdapter;
@@ -8,7 +8,7 @@ use Prooph\EventStore\Configuration\Exception\ConfigurationException;
 
 /**
  * Class MongoDbEventStoreAdapterFactory
- * @package Prooph\EventStore\Adapter\MongoDb\Service
+ * @package Prooph\EventStore\Adapter\MongoDb\Container
  */
 final class MongoDbEventStoreAdapterFactory
 {

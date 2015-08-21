@@ -5,11 +5,11 @@ namespace Prooph\EventStore\Adapter\MongDbTest\Service;
 use Interop\Container\ContainerInterface;
 use PHPUnit_Framework_TestCase as TestCase;
 use Prooph\EventStore\Adapter\MongoDb\MongoDbEventStoreAdapter;
-use Prooph\EventStore\Adapter\MongoDb\Service\MongoDbEventStoreAdapterFactory;
+use Prooph\EventStore\Adapter\MongoDb\Container\MongoDbEventStoreAdapterFactory;
 
 /**
  * Class MongoDbEventStoreAdapterFactoryTest
- * @package Prooph\EventStore\Adapter\MongDbTest\Service
+ * @package Prooph\EventStore\Adapter\MongDbTest\Container
  */
 class MongoDbEventStoreAdapterFactoryTest extends TestCase
 {
