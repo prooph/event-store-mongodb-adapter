@@ -57,6 +57,11 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     protected $transactionId;
 
     /**
+     * @var array
+     */
+    protected $writeConcern;
+
+    /**
      * @param \MongoClient $mongoClient
      * @param string $dbName
      * @param array $writeConcern
@@ -76,6 +81,8 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
         if ($streamCollectionName) {
             $this->streamCollectionName = $streamCollectionName;
         }
+
+        $this->writeConcern = array_merge(['w' => 1, 'j' => true], $writeConcern);
     }
 
     /**
@@ -112,7 +119,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
 
         if (1 == count($streamEvents)) {
             $eventData = $this->prepareEventData($streamName, reset($streamEvents));
-            $collection->insert($eventData);
+            $collection->insert($eventData, $this->writeConcern);
         } else {
             $data = [];
 
@@ -120,7 +127,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
                 $data[] = $this->prepareEventData($streamName, $streamEvent);
             }
 
-            $collection->batchInsert($data);
+            $collection->batchInsert($data, $this->writeConcern);
         }
     }
 
@@ -241,6 +248,9 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function commit()
     {
+        $writeConcern = $this->writeConcern;
+        $writeConcern['multiple'] = true;
+
         $this->getCollection()->update(
             [
                 'transaction_id' => $this->transactionId
@@ -251,9 +261,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
                     'transaction_id' => 1
                 ]
             ],
-            [
-                'multiple' => true
-            ]
+            $writeConcern
         );
 
         $this->transactionId = null;
@@ -266,13 +274,14 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function rollback()
     {
+        $writeConcern = $this->writeConcern;
+        $writeConcern['multiple'] = true;
+
         $this->getCollection()->remove(
             [
                 'transaction_id' => $this->transactionId
             ],
-            [
-                'multiple' => true
-            ]
+            $writeConcern
         );
 
         $this->transactionId = null;
