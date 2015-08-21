@@ -13,7 +13,7 @@ Requirements:
 Write concern:
 --------------
 
-This adapter uses has a transaction timeout of 50 secs by default.
+This adapter uses a transaction timeout of 50 secs by default.
 
 The default write concern for this adapater is acknowledged and journaled (['w' => 1, 'j' => true]).
 
