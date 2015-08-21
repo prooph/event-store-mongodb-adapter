@@ -112,7 +112,6 @@ class MongoDbEventStoreAdapterTest extends TestCase
 
         $this->adapter->appendTo(new StreamName('Prooph\Model\User'), [$streamEvent1, $streamEvent2]);
 
-        //die('dd');
         $stream = $this->adapter->load(new StreamName('Prooph\Model\User'), 2);
 
         $this->assertEquals('Prooph\Model\User', $stream->streamName()->toString());
@@ -163,6 +162,24 @@ class MongoDbEventStoreAdapterTest extends TestCase
     public function it_throws_exception_when_empty_stream_created()
     {
         $this->adapter->create(new Stream(new StreamName('Prooph\Model\User'), []));
+    }
+
+    /**
+     * @test
+     * @expectedException Assert\InvalidArgumentException
+     * @expectedExceptionMessage Transaction timeout must be a positive integer
+     */
+    public function it_throws_exception_when_invalid_transaction_timeout_given()
+    {
+        new MongoDbEventStoreAdapter(new \MongoClient(), 'mongo_adapter_test', null, null, 'invalid');
+    }
+
+    /**
+     * @test
+     */
+    public function it_accepts_custom_transaction_timeout()
+    {
+        new MongoDbEventStoreAdapter(new \MongoClient(), 'mongo_adapter_test', null, null, 10);
     }
 
     /**

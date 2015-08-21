@@ -87,27 +87,46 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     ];
 
     /**
+     * Transaction timeout in seconds
+     *
+     * @var int
+     */
+    protected $transactionTimeout = 50;
+
+    /**
      * @param \MongoClient $mongoClient
      * @param string $dbName
      * @param array $writeConcern
      * @param string|null $streamCollectionName
+     * @param int $transactionTimeout
      */
     public function __construct(
         \MongoClient $mongoClient,
         $dbName,
-        array $writeConcern = [],
-        $streamCollectionName = null
+        array $writeConcern = null,
+        $streamCollectionName = null,
+        $transactionTimeout = null
     ) {
         Assertion::minLength($dbName, 1, 'Mongo database name is missing');
 
         $this->mongoClient = $mongoClient;
         $this->dbName      = $dbName;
 
-        if ($streamCollectionName) {
+        if (null !== $streamCollectionName) {
+            Assertion::minLength($streamCollectionName, 1, 'Stream collection name must be a string with min length 1');
+
             $this->streamCollectionName = $streamCollectionName;
         }
 
-        $this->writeConcern = array_merge($this->writeConcern, $writeConcern);
+        if (null !== $writeConcern) {
+            $this->writeConcern = $writeConcern;
+        }
+
+        if (null !== $transactionTimeout) {
+            Assertion::min($transactionTimeout, 1, 'Transaction timeout must be a positive integer');
+
+            $this->transactionTimeout = $transactionTimeout;
+        }
     }
 
     /**
@@ -327,7 +346,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
                 'expire_at' => 1
             ],
             [
-                'expireAfterSeconds' => 50,
+                'expireAfterSeconds' => $this->transactionTimeout,
             ]
         );
     }
