@@ -23,6 +23,16 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     protected $mongoClient;
 
     /**
+     * @var \MongoCollection
+     */
+    protected $collection;
+
+    /**
+     * @var \MongoInsertBatch
+     */
+    protected $insertBatch;
+
+    /**
      * @var string
      */
     protected $dbName;
@@ -115,11 +125,11 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function appendTo(StreamName $streamName, array $streamEvents)
     {
-        $collection = $this->getCollection();
+
 
         if (1 == count($streamEvents)) {
             $eventData = $this->prepareEventData($streamName, reset($streamEvents));
-            $collection->insert($eventData, $this->writeConcern);
+            $this->getCollection()->insert($eventData, $this->writeConcern);
         } else {
             $data = [];
 
@@ -127,7 +137,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
                 $data[] = $this->prepareEventData($streamName, $streamEvent);
             }
 
-            $collection->batchInsert($data, $this->writeConcern);
+            $this->getInsertBatch()->add($data);
         }
     }
 
@@ -322,9 +332,25 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     protected function getCollection()
     {
-        $collection = $this->mongoClient->selectCollection($this->dbName, $this->streamCollectionName);
-        $collection->setReadPreference(\MongoClient::RP_PRIMARY);
+        if (null === $this->collection) {
+            $this->collection = $this->mongoClient->selectCollection($this->dbName, $this->streamCollectionName);
+            $this->collection->setReadPreference(\MongoClient::RP_PRIMARY);
+        }
 
-        return $collection;
+        return $this->collection;
+    }
+
+    /**
+     * Get mongo db insert batch
+     *
+     * @return \MongoInsertBatch
+     */
+    protected function getInsertBatch()
+    {
+        if (null === $this->insertBatch) {
+            $this->insertBatch = new \MongoInsertBatch($this->getCollection(), $this->writeConcern);
+        }
+
+        return $this->insertBatch;
     }
 }
