@@ -38,7 +38,9 @@ class MongoDbEventStoreAdapterTest extends TestCase
 
     protected function tearDown()
     {
-        $this->client->selectDB('mongo_adapter_test')->drop();
+        if (null !== $this->client) {
+            $this->client->selectDB('mongo_adapter_test')->drop();
+        }
     }
 
     /**
