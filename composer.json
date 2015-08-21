@@ -8,7 +8,8 @@
     "require": {
         "php": ">=5.5",
         "container-interop/container-interop" : "~1.0",
-        "beberlei/assert": "~2.0"
+        "beberlei/assert": "~2.0",
+        "ext-mongo": ">=1.5"
     },
     "require-dev": {
         "prooph/event-store": "dev-master",
