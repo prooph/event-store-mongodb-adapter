@@ -42,8 +42,10 @@ final class MongoDbEventStoreAdapterFactory
 
         $dbName = $adapterOptions['db_name'];
 
+        $writeConcern = isset($adapterOptions['write_concern']) ? $adapterOptions['write_concern'] : [];
+
         $streamCollectionName = isset($adapterOptions['collection_name']) ? $adapterOptions['collection_name'] : null;
 
-        return new MongoDbEventStoreAdapter($mongoClient, $dbName, [], $streamCollectionName);
+        return new MongoDbEventStoreAdapter($mongoClient, $dbName, $writeConcern, $streamCollectionName);
     }
 }
