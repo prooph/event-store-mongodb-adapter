@@ -226,6 +226,17 @@ class MongoDbEventStoreAdapterTest extends TestCase
     }
 
     /**
+     * @test
+     * @expectedException RuntimeException
+     * @expectedExceptionMessage Transaction already startet
+     */
+    public function it_throws_exception_when_second_transaction_started()
+    {
+        $this->adapter->beginTransaction();
+        $this->adapter->beginTransaction();
+    }
+
+    /**
      * @return Stream
      */
     private function getTestStream()
