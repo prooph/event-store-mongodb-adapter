@@ -228,7 +228,7 @@ class MongoDbEventStoreAdapterTest extends TestCase
     /**
      * @test
      * @expectedException RuntimeException
-     * @expectedExceptionMessage Transaction already startet
+     * @expectedExceptionMessage Transaction already started
      */
     public function it_throws_exception_when_second_transaction_started()
     {

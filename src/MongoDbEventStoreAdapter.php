@@ -275,7 +275,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     public function beginTransaction()
     {
         if (null !== $this->transactionId) {
-            throw new \RuntimeException('Transaction already startet');
+            throw new \RuntimeException('Transaction already started');
         }
 
         $this->transactionId = new \MongoId();
