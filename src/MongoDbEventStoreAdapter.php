@@ -6,13 +6,15 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  *
- * Date: 06.08.15 - 21:58
+ * Date: 08/06/15 - 21:58
  */
 
 namespace Prooph\EventStore\Adapter\MongoDb;
 
 use Assert\Assertion;
-use Prooph\Common\Messaging\DomainEvent;
+use Prooph\Common\Messaging\Message;
+use Prooph\Common\Messaging\MessageConverter;
+use Prooph\Common\Messaging\MessageFactory;
 use Prooph\EventStore\Adapter\Adapter;
 use Prooph\EventStore\Adapter\Feature\CanHandleTransaction;
 use Prooph\EventStore\Exception\RuntimeException;
@@ -26,58 +28,66 @@ use Prooph\EventStore\Stream\StreamName;
  * Class MongoDbEventStoreAdapter
  * @package Prooph\EventStore\Adapter\MongoDb
  */
-class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
+final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
 {
+    /**
+     * @var MessageFactory
+     */
+    private $messageFactory;
+
+    /**
+     * @var MessageConverter
+     */
+    private $messageConverter;
+
     /**
      * @var \MongoClient
      */
-    protected $mongoClient;
+    private $mongoClient;
 
     /**
      * @var \MongoCollection
      */
-    protected $collection;
+    private $collection;
 
     /**
      * @var \MongoDeleteBatch
      */
-    protected $deleteBatch;
+    private $deleteBatch;
 
     /**
      * @var \MongoInsertBatch
      */
-    protected $insertBatch;
+    private $insertBatch;
 
     /**
      * @var \MongoUpdateBatch
      */
-    protected $updateBatch;
+    private $updateBatch;
 
     /**
      * @var string
      */
-    protected $dbName;
+    private $dbName;
 
     /**
      * Name of the mongo db collection
      *
      * @var string
      */
-    protected $streamCollectionName = 'event_stream';
+    private $streamCollectionName = 'event_stream';
 
     /**
      * @var array
      */
-    protected $standardColumns = [
+    private $standardColumns = [
         '_id',
-        'created_at',
         'event_name',
-        'event_class',
-        'expire_at',
+        'created_at',
         'payload',
-        'stream_name',
+        'version',
         'transaction_id',
-        'version'
+        'expire_at'
     ];
 
     /**
@@ -85,7 +95,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      *
      * @var \MongoId|null
      */
-    protected $transactionId;
+    private $transactionId;
 
     /**
      * Mongo DB write concern
@@ -93,7 +103,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      *
      * @var array
      */
-    protected $writeConcern = [
+    private $writeConcern = [
         'w' => 1,
         'j' => true
     ];
@@ -103,16 +113,20 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      *
      * @var int
      */
-    protected $transactionTimeout = 50;
+    private $transactionTimeout = 50;
 
     /**
+     * @param MessageFactory $messageFactory
+     * @param MessageConverter $messageConverter
      * @param \MongoClient $mongoClient
      * @param string $dbName
-     * @param array $writeConcern
+     * @param array|null $writeConcern
      * @param string|null $streamCollectionName
-     * @param int $transactionTimeout
+     * @param int|null $transactionTimeout
      */
     public function __construct(
+        MessageFactory $messageFactory,
+        MessageConverter $messageConverter,
         \MongoClient $mongoClient,
         $dbName,
         array $writeConcern = null,
@@ -121,8 +135,10 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     ) {
         Assertion::minLength($dbName, 1, 'Mongo database name is missing');
 
-        $this->mongoClient = $mongoClient;
-        $this->dbName      = $dbName;
+        $this->messageFactory   = $messageFactory;
+        $this->messageConverter = $messageConverter;
+        $this->mongoClient      = $mongoClient;
+        $this->dbName           = $dbName;
 
         if (null !== $streamCollectionName) {
             Assertion::minLength($streamCollectionName, 1, 'Stream collection name must be a string with min length 1');
@@ -165,7 +181,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
 
     /**
      * @param StreamName $streamName
-     * @param DomainEvent[] $streamEvents
+     * @param Message[] $streamEvents
      * @throws StreamNotFoundException If stream does not exist
      * @return void
      */
@@ -181,22 +197,22 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
 
     /**
      * @param StreamName $streamName
-     * @param DomainEvent $e
+     * @param Message $e
      * @return array
      */
-    protected function prepareEventData(StreamName $streamName, DomainEvent $e)
+    private function prepareEventData(StreamName $streamName, Message $e)
     {
+        $eventArr = $this->messageConverter->convertToArray($e);
+
         $eventData = [
-            '_id'         => $e->uuid()->toString(),
-            'stream_name' => (string) $streamName,
-            'version'     => $e->version(),
-            'event_name'  => $e->messageName(),
-            'event_class' => get_class($e),
-            'payload'     => $e->payload(),
+            '_id'         => $eventArr['uuid'],
+            'version'     => $eventArr['version'],
+            'event_name'  => $eventArr['message_name'],
+            'payload'     => $eventArr['payload'],
             'created_at'  => new \MongoDate($e->createdAt()->getTimestamp()),
         ];
 
-        foreach ($e->metadata() as $key => $value) {
+        foreach ($eventArr['metadata'] as $key => $value) {
             $eventData[$key] = (string) $value;
         }
 
@@ -224,7 +240,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      * @param StreamName $streamName
      * @param array $metadata
      * @param null|int $minVersion
-     * @return DomainEvent[]
+     * @return Message[]
      * @throws StreamNotFoundException
      */
     public function loadEventsByMetadataFrom(StreamName $streamName, array $metadata, $minVersion = null)
@@ -243,8 +259,6 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
         $events = [];
 
         foreach ($results as $eventData) {
-            $eventClass = $eventData['event_class'];
-
             //Add metadata stored in table
             foreach ($eventData as $key => $value) {
                 if (! in_array($key, $this->standardColumns)) {
@@ -254,17 +268,15 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
 
             $createdAt = new \DateTime();
             $createdAt->setTimestamp($eventData['created_at']->sec);
+            $createdAt->setTimezone(new \DateTimeZone('UTC'));
 
-            $events[] = $eventClass::fromArray(
-                [
-                    'uuid' => $eventData['_id'],
-                    'name' => $eventData['event_name'],
-                    'version' => (int) $eventData['version'],
-                    'created_at' => $createdAt->format(\DateTime::ISO8601),
-                    'payload' => $eventData['payload'],
-                    'metadata' => $metadata
-                ]
-            );
+            $events[] = $this->messageFactory->createMessageFromArray($eventData['event_name'], [
+                'uuid' => $eventData['_id'],
+                'version' => (int) $eventData['version'],
+                'created_at' => $createdAt->format(\DateTime::ISO8601),
+                'payload' => $eventData['payload'],
+                'metadata' => $metadata
+            ]);
         }
 
         if (empty($events)) {
@@ -342,7 +354,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     /**
      * @return void
      */
-    protected function createIndexes()
+    private function createIndexes()
     {
         $collection = $this->getCollection();
 
@@ -372,7 +384,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      *
      * @return \MongoCollection
      */
-    protected function getCollection()
+    private function getCollection()
     {
         if (null === $this->collection) {
             $this->collection = $this->mongoClient->selectCollection($this->dbName, $this->streamCollectionName);
@@ -387,7 +399,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      *
      * @return \MongoInsertBatch
      */
-    protected function getInsertBatch()
+    private function getInsertBatch()
     {
         if (null === $this->insertBatch) {
             $this->insertBatch = new \MongoInsertBatch($this->getCollection(), $this->writeConcern);
@@ -401,7 +413,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      *
      * @return \MongoUpdateBatch
      */
-    protected function getUpdateBatch()
+    private function getUpdateBatch()
     {
         if (null === $this->updateBatch) {
             $this->updateBatch = new \MongoUpdateBatch($this->getCollection(), $this->writeConcern);
@@ -415,7 +427,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      *
      * @return \MongoDeleteBatch
      */
-    protected function getDeleteBatch()
+    private function getDeleteBatch()
     {
         if (null === $this->deleteBatch) {
             $this->deleteBatch = new \MongoDeleteBatch($this->getCollection(), $this->writeConcern);

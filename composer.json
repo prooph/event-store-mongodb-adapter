@@ -9,11 +9,12 @@
         "php": ">=5.5",
         "container-interop/container-interop" : "~1.0",
         "beberlei/assert": "~2.0",
+        "prooph/common": "^3.3",
         "ext-mongo": ">=1.5"
     },
     "require-dev": {
-        "prooph/event-store": "dev-master",
-        "phpunit/phpunit": "3.7.*",
+        "prooph/event-store": "dev-5.0-beta",
+        "phpunit/phpunit": "4.7.*",
         "fabpot/php-cs-fixer": "1.7.*",
         "satooshi/php-coveralls": "dev-master"
     },
@@ -23,7 +24,7 @@
         }
     },
     "autoload-dev": {
-        "psr-0": {
+        "psr-4": {
             "Prooph\\EventStoreTest\\": "vendor/prooph/event-store/tests/"
         }
     },

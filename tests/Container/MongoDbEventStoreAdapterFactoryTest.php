@@ -6,7 +6,7 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  *
- * Date: 20.08.15 - 17:51
+ * Date: 08/20/15 - 17:51
  */
 
 namespace Prooph\EventStore\Adapter\MongDbTest\Service;
@@ -50,7 +50,7 @@ class MongoDbEventStoreAdapterFactoryTest extends TestCase
 
     /**
      * @test
-     * @expectedException Prooph\EventStore\Configuration\Exception\ConfigurationException
+     * @expectedException Prooph\EventStore\Exception\ConfigurationException
      * @expectedExceptionMessage Mongo database name is missing
      */
     public function it_throws_exception_if_db_name_is_missing()
@@ -68,7 +68,7 @@ class MongoDbEventStoreAdapterFactoryTest extends TestCase
 
     /**
      * @test
-     * @expectedException Prooph\EventStore\Configuration\Exception\ConfigurationException
+     * @expectedException Prooph\EventStore\Exception\ConfigurationException
      * @expectedExceptionMessage Missing adapter configuration in prooph event_store configuration
      */
     public function it_throws_exception_if_adapter_config_missing()
