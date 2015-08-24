@@ -152,7 +152,7 @@ final class MongoDbEventStoreAdapterTest extends TestCase
      */
     public function it_throws_exception_when_no_db_name_set()
     {
-        new MongoDbEventStoreAdapter(new FQCNMessageFactory(), new NoOpMessageConverter(),new \MongoClient(), null);
+        new MongoDbEventStoreAdapter(new FQCNMessageFactory(), new NoOpMessageConverter(), new \MongoClient(), null);
     }
 
     /**
