@@ -12,7 +12,7 @@
 namespace Prooph\EventStore\Adapter\MongoDb;
 
 use Assert\Assertion;
-use Prooph\Common\Messaging\DomainEvent;
+use Prooph\Common\Messaging\Message;
 use Prooph\Common\Messaging\MessageConverter;
 use Prooph\Common\Messaging\MessageFactory;
 use Prooph\EventStore\Adapter\Adapter;
@@ -82,14 +82,12 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     protected $standardColumns = [
         '_id',
-        'created_at',
         'event_name',
-        'event_class',
-        'expire_at',
+        'created_at',
         'payload',
-        'stream_name',
+        'version',
         'transaction_id',
-        'version'
+        'expire_at'
     ];
 
     /**
@@ -181,7 +179,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
 
     /**
      * @param StreamName $streamName
-     * @param DomainEvent[] $streamEvents
+     * @param Message[] $streamEvents
      * @throws StreamNotFoundException If stream does not exist
      * @return void
      */
@@ -197,22 +195,22 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
 
     /**
      * @param StreamName $streamName
-     * @param DomainEvent $e
+     * @param Message $e
      * @return array
      */
-    protected function prepareEventData(StreamName $streamName, DomainEvent $e)
+    protected function prepareEventData(StreamName $streamName, Message $e)
     {
+        $eventArr = $this->messageConverter->convertToArray($e);
+
         $eventData = [
-            '_id'         => $e->uuid()->toString(),
-            'stream_name' => (string) $streamName,
-            'version'     => $e->version(),
-            'event_name'  => $e->messageName(),
-            'event_class' => get_class($e),
-            'payload'     => $e->payload(),
+            '_id'         => $eventArr['uuid'],
+            'version'     => $eventArr['version'],
+            'event_name'  => $eventArr['message_name'],
+            'payload'     => $eventArr['payload'],
             'created_at'  => new \MongoDate($e->createdAt()->getTimestamp()),
         ];
 
-        foreach ($e->metadata() as $key => $value) {
+        foreach ($eventArr['metadata'] as $key => $value) {
             $eventData[$key] = (string) $value;
         }
 
@@ -240,7 +238,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      * @param StreamName $streamName
      * @param array $metadata
      * @param null|int $minVersion
-     * @return DomainEvent[]
+     * @return Message[]
      * @throws StreamNotFoundException
      */
     public function loadEventsByMetadataFrom(StreamName $streamName, array $metadata, $minVersion = null)
@@ -259,8 +257,6 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
         $events = [];
 
         foreach ($results as $eventData) {
-            $eventClass = $eventData['event_class'];
-
             //Add metadata stored in table
             foreach ($eventData as $key => $value) {
                 if (! in_array($key, $this->standardColumns)) {
@@ -271,16 +267,13 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
             $createdAt = new \DateTime();
             $createdAt->setTimestamp($eventData['created_at']->sec);
 
-            $events[] = $eventClass::fromArray(
-                [
-                    'uuid' => $eventData['_id'],
-                    'name' => $eventData['event_name'],
-                    'version' => (int) $eventData['version'],
-                    'created_at' => $createdAt->format(\DateTime::ISO8601),
-                    'payload' => $eventData['payload'],
-                    'metadata' => $metadata
-                ]
-            );
+            $events[] = $this->messageFactory->createMessageFromArray($eventData['event_name'], [
+                'uuid' => $eventData['_id'],
+                'version' => (int) $eventData['version'],
+                'created_at' => $createdAt->format(\DateTime::ISO8601),
+                'payload' => $eventData['payload'],
+                'metadata' => $metadata
+            ]);
         }
 
         if (empty($events)) {
