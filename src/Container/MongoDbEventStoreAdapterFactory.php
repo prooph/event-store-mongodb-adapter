@@ -12,8 +12,12 @@
 namespace Prooph\EventStore\Adapter\MongoDb\Container;
 
 use Interop\Container\ContainerInterface;
+use Prooph\Common\Messaging\FQCNMessageFactory;
+use Prooph\Common\Messaging\MessageConverter;
+use Prooph\Common\Messaging\MessageFactory;
+use Prooph\Common\Messaging\NoOpMessageConverter;
 use Prooph\EventStore\Adapter\MongoDb\MongoDbEventStoreAdapter;
-use Prooph\EventStore\Configuration\Exception\ConfigurationException;
+use Prooph\EventStore\Exception\ConfigurationException;
 
 /**
  * Class MongoDbEventStoreAdapterFactory
@@ -51,6 +55,15 @@ final class MongoDbEventStoreAdapterFactory
 
         $dbName = $adapterOptions['db_name'];
 
+        $messageFactory = $container->has(MessageFactory::class)
+            ? $container->get(MessageFactory::class)
+            : new FQCNMessageFactory();
+
+        $messageConverter = $container->has(MessageConverter::class)
+            ? $container->get(MessageConverter::class)
+            : new NoOpMessageConverter();
+
+
         $writeConcern = isset($adapterOptions['write_concern']) ? $adapterOptions['write_concern'] : [];
 
         $streamCollectionName = isset($adapterOptions['collection_name']) ? $adapterOptions['collection_name'] : null;
@@ -58,6 +71,8 @@ final class MongoDbEventStoreAdapterFactory
         $timeout = isset($adapterOptions['transaction_timeout']) ? $adapterOptions['transaction_timeout'] : null;
 
         return new MongoDbEventStoreAdapter(
+            $messageFactory,
+            $messageConverter,
             $mongoClient,
             $dbName,
             $writeConcern,

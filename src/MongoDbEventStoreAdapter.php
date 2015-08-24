@@ -116,27 +116,29 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     private $transactionTimeout = 50;
 
     /**
+     * @param MessageFactory $messageFactory
+     * @param MessageConverter $messageConverter
      * @param \MongoClient $mongoClient
      * @param string $dbName
-     * @param array $writeConcern
+     * @param array|null $writeConcern
      * @param string|null $streamCollectionName
-     * @param int $transactionTimeout
+     * @param int|null $transactionTimeout
      */
     public function __construct(
-        \MongoClient $mongoClient,
-        $dbName,
         MessageFactory $messageFactory,
         MessageConverter $messageConverter,
+        \MongoClient $mongoClient,
+        $dbName,
         array $writeConcern = null,
         $streamCollectionName = null,
         $transactionTimeout = null
     ) {
         Assertion::minLength($dbName, 1, 'Mongo database name is missing');
 
-        $this->mongoClient      = $mongoClient;
-        $this->dbName           = $dbName;
         $this->messageFactory   = $messageFactory;
         $this->messageConverter = $messageConverter;
+        $this->mongoClient      = $mongoClient;
+        $this->dbName           = $dbName;
 
         if (null !== $streamCollectionName) {
             Assertion::minLength($streamCollectionName, 1, 'Stream collection name must be a string with min length 1');
