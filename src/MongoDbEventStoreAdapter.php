@@ -268,6 +268,7 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
 
             $createdAt = new \DateTime();
             $createdAt->setTimestamp($eventData['created_at']->sec);
+            $createdAt->setTimezone(new \DateTimeZone('UTC'));
 
             $events[] = $this->messageFactory->createMessageFromArray($eventData['event_name'], [
                 'uuid' => $eventData['_id'],

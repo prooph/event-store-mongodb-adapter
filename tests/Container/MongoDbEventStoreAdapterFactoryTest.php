@@ -50,7 +50,7 @@ class MongoDbEventStoreAdapterFactoryTest extends TestCase
 
     /**
      * @test
-     * @expectedException Prooph\EventStore\Configuration\Exception\ConfigurationException
+     * @expectedException Prooph\EventStore\Exception\ConfigurationException
      * @expectedExceptionMessage Mongo database name is missing
      */
     public function it_throws_exception_if_db_name_is_missing()
@@ -68,7 +68,7 @@ class MongoDbEventStoreAdapterFactoryTest extends TestCase
 
     /**
      * @test
-     * @expectedException Prooph\EventStore\Configuration\Exception\ConfigurationException
+     * @expectedException Prooph\EventStore\Exception\ConfigurationException
      * @expectedExceptionMessage Missing adapter configuration in prooph event_store configuration
      */
     public function it_throws_exception_if_adapter_config_missing()

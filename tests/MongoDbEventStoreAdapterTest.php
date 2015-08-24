@@ -12,8 +12,9 @@
 namespace Prooph\EventStore\Adapter\MongDbTest;
 
 use PHPUnit_Framework_TestCase as TestCase;
+use Prooph\Common\Messaging\FQCNMessageFactory;
+use Prooph\Common\Messaging\NoOpMessageConverter;
 use Prooph\EventStore\Adapter\MongoDb\MongoDbEventStoreAdapter;
-use Prooph\EventStore\Stream\DomainEventMetadataWriter;
 use Prooph\EventStore\Stream\Stream;
 use Prooph\EventStore\Stream\StreamName;
 use Prooph\EventStoreTest\Mock\UserCreated;
@@ -23,17 +24,17 @@ use Prooph\EventStoreTest\Mock\UsernameChanged;
  * Class MongoDbEventStoreAdapterTest
  * @package Prooph\EventStore\Adapter\MongDbTest
  */
-class MongoDbEventStoreAdapterTest extends TestCase
+final class MongoDbEventStoreAdapterTest extends TestCase
 {
     /**
      * @var MongoDbEventStoreAdapter
      */
-    protected $adapter;
+    private $adapter;
 
     /**
      * @var \MongoClient
      */
-    protected $client;
+    private $client;
 
     protected function setUp()
     {
@@ -42,7 +43,12 @@ class MongoDbEventStoreAdapterTest extends TestCase
 
         $this->client->selectDB($dbName)->drop();
 
-        $this->adapter = new MongoDbEventStoreAdapter($this->client, $dbName);
+        $this->adapter = new MongoDbEventStoreAdapter(
+            new FQCNMessageFactory(),
+            new NoOpMessageConverter(),
+            $this->client,
+            $dbName
+        );
     }
 
     protected function tearDown()
@@ -88,7 +94,7 @@ class MongoDbEventStoreAdapterTest extends TestCase
             2
         );
 
-        DomainEventMetadataWriter::setMetadataKey($streamEvent, 'tag', 'person');
+        $streamEvent = $streamEvent->withAddedMetadata('tag', 'person');
 
         $this->adapter->appendTo(new StreamName('Prooph\Model\User'), [$streamEvent]);
 
@@ -110,14 +116,14 @@ class MongoDbEventStoreAdapterTest extends TestCase
             2
         );
 
-        DomainEventMetadataWriter::setMetadataKey($streamEvent1, 'tag', 'person');
+        $streamEvent1 = $streamEvent1->withAddedMetadata('tag', 'person');
 
         $streamEvent2 = UsernameChanged::with(
             ['name' => 'Jane Doe'],
             2
         );
 
-        DomainEventMetadataWriter::setMetadataKey($streamEvent2, 'tag', 'person');
+        $streamEvent2 = $streamEvent2->withAddedMetadata('tag', 'person');
 
         $this->adapter->appendTo(new StreamName('Prooph\Model\User'), [$streamEvent1, $streamEvent2]);
 
@@ -146,7 +152,7 @@ class MongoDbEventStoreAdapterTest extends TestCase
      */
     public function it_throws_exception_when_no_db_name_set()
     {
-        new MongoDbEventStoreAdapter(new \MongoClient(), null);
+        new MongoDbEventStoreAdapter(new FQCNMessageFactory(), new NoOpMessageConverter(),new \MongoClient(), null);
     }
 
     /**
@@ -159,7 +165,14 @@ class MongoDbEventStoreAdapterTest extends TestCase
 
         $client->selectDB($dbName)->drop();
 
-        $this->adapter = new MongoDbEventStoreAdapter($client, $dbName, [], 'custom_collection');
+        $this->adapter = new MongoDbEventStoreAdapter(
+            new FQCNMessageFactory(),
+            new NoOpMessageConverter(),
+            $client,
+            $dbName,
+            [],
+            'custom_collection'
+        );
 
         $this->adapter->create($this->getTestStream());
     }
@@ -180,7 +193,15 @@ class MongoDbEventStoreAdapterTest extends TestCase
      */
     public function it_throws_exception_when_invalid_transaction_timeout_given()
     {
-        new MongoDbEventStoreAdapter(new \MongoClient(), 'mongo_adapter_test', null, null, 'invalid');
+        new MongoDbEventStoreAdapter(
+            new FQCNMessageFactory(),
+            new NoOpMessageConverter(),
+            new \MongoClient(),
+            'mongo_adapter_test',
+            null,
+            null,
+            'invalid'
+        );
     }
 
     /**
@@ -188,7 +209,15 @@ class MongoDbEventStoreAdapterTest extends TestCase
      */
     public function it_accepts_custom_transaction_timeout()
     {
-        new MongoDbEventStoreAdapter(new \MongoClient(), 'mongo_adapter_test', null, null, 10);
+        new MongoDbEventStoreAdapter(
+            new FQCNMessageFactory(),
+            new NoOpMessageConverter(),
+            new \MongoClient(),
+            'mongo_adapter_test',
+            null,
+            null,
+            10
+        );
     }
 
     /**
@@ -221,7 +250,15 @@ class MongoDbEventStoreAdapterTest extends TestCase
 
         $this->client->selectDB($dbName)->drop();
 
-        $this->adapter = new MongoDbEventStoreAdapter($this->client, $dbName, null, null, 3);
+        $this->adapter = new MongoDbEventStoreAdapter(
+            new FQCNMessageFactory(),
+            new NoOpMessageConverter(),
+            $this->client,
+            $dbName,
+            null,
+            null,
+            3
+        );
 
         $testStream = $this->getTestStream();
 
@@ -255,7 +292,7 @@ class MongoDbEventStoreAdapterTest extends TestCase
             1
         );
 
-        DomainEventMetadataWriter::setMetadataKey($streamEvent, 'tag', 'person');
+        $streamEvent = $streamEvent->withAddedMetadata('tag', 'person');
 
         return new Stream(new StreamName('Prooph\Model\User'), [$streamEvent]);
     }
