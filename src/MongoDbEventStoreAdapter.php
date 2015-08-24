@@ -13,6 +13,8 @@ namespace Prooph\EventStore\Adapter\MongoDb;
 
 use Assert\Assertion;
 use Prooph\Common\Messaging\DomainEvent;
+use Prooph\Common\Messaging\MessageConverter;
+use Prooph\Common\Messaging\MessageFactory;
 use Prooph\EventStore\Adapter\Adapter;
 use Prooph\EventStore\Adapter\Feature\CanHandleTransaction;
 use Prooph\EventStore\Exception\RuntimeException;
@@ -28,6 +30,16 @@ use Prooph\EventStore\Stream\StreamName;
  */
 class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
 {
+    /**
+     * @var MessageFactory
+     */
+    private $messageFactory;
+
+    /**
+     * @var MessageConverter
+     */
+    private $messageConverter;
+
     /**
      * @var \MongoClient
      */
@@ -115,14 +127,18 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     public function __construct(
         \MongoClient $mongoClient,
         $dbName,
+        MessageFactory $messageFactory,
+        MessageConverter $messageConverter,
         array $writeConcern = null,
         $streamCollectionName = null,
         $transactionTimeout = null
     ) {
         Assertion::minLength($dbName, 1, 'Mongo database name is missing');
 
-        $this->mongoClient = $mongoClient;
-        $this->dbName      = $dbName;
+        $this->mongoClient      = $mongoClient;
+        $this->dbName           = $dbName;
+        $this->messageFactory   = $messageFactory;
+        $this->messageConverter = $messageConverter;
 
         if (null !== $streamCollectionName) {
             Assertion::minLength($streamCollectionName, 1, 'Stream collection name must be a string with min length 1');
