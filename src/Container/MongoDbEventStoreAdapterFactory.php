@@ -52,7 +52,6 @@ final class MongoDbEventStoreAdapterFactory
                 'Mongo database name is missing
                 '
             );
-
         }
 
         $dbName = $adapterOptions['db_name'];
