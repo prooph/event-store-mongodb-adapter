@@ -6,7 +6,7 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  *
- * Date: 20.08.15 - 17:13
+ * Date: 08/20/15 - 17:13
  */
 
 namespace Prooph\EventStore\Adapter\MongoDb\Container;
@@ -49,8 +49,10 @@ final class MongoDbEventStoreAdapterFactory
 
         if (!isset($adapterOptions['db_name'])) {
             throw ConfigurationException::configurationError(
-                'Mongo database name is missing'
+                'Mongo database name is missing
+                '
             );
+
         }
 
         $dbName = $adapterOptions['db_name'];
