@@ -28,7 +28,7 @@ use Prooph\EventStore\Stream\StreamName;
  * Class MongoDbEventStoreAdapter
  * @package Prooph\EventStore\Adapter\MongoDb
  */
-class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
+final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
 {
     /**
      * @var MessageFactory
@@ -43,44 +43,44 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     /**
      * @var \MongoClient
      */
-    protected $mongoClient;
+    private $mongoClient;
 
     /**
      * @var \MongoCollection
      */
-    protected $collection;
+    private $collection;
 
     /**
      * @var \MongoDeleteBatch
      */
-    protected $deleteBatch;
+    private $deleteBatch;
 
     /**
      * @var \MongoInsertBatch
      */
-    protected $insertBatch;
+    private $insertBatch;
 
     /**
      * @var \MongoUpdateBatch
      */
-    protected $updateBatch;
+    private $updateBatch;
 
     /**
      * @var string
      */
-    protected $dbName;
+    private $dbName;
 
     /**
      * Name of the mongo db collection
      *
      * @var string
      */
-    protected $streamCollectionName = 'event_stream';
+    private $streamCollectionName = 'event_stream';
 
     /**
      * @var array
      */
-    protected $standardColumns = [
+    private $standardColumns = [
         '_id',
         'event_name',
         'created_at',
@@ -95,7 +95,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      *
      * @var \MongoId|null
      */
-    protected $transactionId;
+    private $transactionId;
 
     /**
      * Mongo DB write concern
@@ -103,7 +103,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      *
      * @var array
      */
-    protected $writeConcern = [
+    private $writeConcern = [
         'w' => 1,
         'j' => true
     ];
@@ -113,7 +113,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      *
      * @var int
      */
-    protected $transactionTimeout = 50;
+    private $transactionTimeout = 50;
 
     /**
      * @param \MongoClient $mongoClient
@@ -198,7 +198,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      * @param Message $e
      * @return array
      */
-    protected function prepareEventData(StreamName $streamName, Message $e)
+    private function prepareEventData(StreamName $streamName, Message $e)
     {
         $eventArr = $this->messageConverter->convertToArray($e);
 
@@ -351,7 +351,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     /**
      * @return void
      */
-    protected function createIndexes()
+    private function createIndexes()
     {
         $collection = $this->getCollection();
 
@@ -381,7 +381,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      *
      * @return \MongoCollection
      */
-    protected function getCollection()
+    private function getCollection()
     {
         if (null === $this->collection) {
             $this->collection = $this->mongoClient->selectCollection($this->dbName, $this->streamCollectionName);
@@ -396,7 +396,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      *
      * @return \MongoInsertBatch
      */
-    protected function getInsertBatch()
+    private function getInsertBatch()
     {
         if (null === $this->insertBatch) {
             $this->insertBatch = new \MongoInsertBatch($this->getCollection(), $this->writeConcern);
@@ -410,7 +410,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      *
      * @return \MongoUpdateBatch
      */
-    protected function getUpdateBatch()
+    private function getUpdateBatch()
     {
         if (null === $this->updateBatch) {
             $this->updateBatch = new \MongoUpdateBatch($this->getCollection(), $this->writeConcern);
@@ -424,7 +424,7 @@ class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      *
      * @return \MongoDeleteBatch
      */
-    protected function getDeleteBatch()
+    private function getDeleteBatch()
     {
         if (null === $this->deleteBatch) {
             $this->deleteBatch = new \MongoDeleteBatch($this->getCollection(), $this->writeConcern);
