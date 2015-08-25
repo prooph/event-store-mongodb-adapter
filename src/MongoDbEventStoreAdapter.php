@@ -209,7 +209,7 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
             'version'     => $eventArr['version'],
             'event_name'  => $eventArr['message_name'],
             'payload'     => $eventArr['payload'],
-            'created_at'  => new \MongoDate($e->createdAt()->getTimestamp()),
+            'created_at'  => $eventArr['created_at']->format('Y-m-d\TH:i:s.u'),
         ];
 
         foreach ($eventArr['metadata'] as $key => $value) {
@@ -247,14 +247,16 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     {
         $collection = $this->getCollection();
 
+        $query = $metadata;
+
         if (null !== $minVersion) {
-            $metadata['version'] = ['$gte' => $minVersion];
+            $query['version'] = ['$gte' => $minVersion];
         }
 
-        $metadata['expire_at'] = ['$exists' => false];
-        $metadata['transaction_id'] = ['$exists' => false];
+        $query['expire_at'] = ['$exists' => false];
+        $query['transaction_id'] = ['$exists' => false];
 
-        $results = $collection->find($metadata)->sort(['version' => $collection::ASCENDING]);
+        $results = $collection->find($query)->sort(['version' => $collection::ASCENDING]);
 
         $events = [];
 
@@ -266,14 +268,16 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
                 }
             }
 
-            $createdAt = new \DateTime();
-            $createdAt->setTimestamp($eventData['created_at']->sec);
-            $createdAt->setTimezone(new \DateTimeZone('UTC'));
+            $createdAt = \DateTimeImmutable::createFromFormat(
+                'Y-m-d\TH:i:s.u',
+                $eventData['created_at'],
+                new \DateTimeZone('UTC')
+            );
 
             $events[] = $this->messageFactory->createMessageFromArray($eventData['event_name'], [
                 'uuid' => $eventData['_id'],
                 'version' => (int) $eventData['version'],
-                'created_at' => $createdAt->format(\DateTime::ISO8601),
+                'created_at' => $createdAt,
                 'payload' => $eventData['payload'],
                 'metadata' => $metadata
             ]);
