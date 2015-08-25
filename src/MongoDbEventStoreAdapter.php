@@ -283,15 +283,6 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
             ]);
         }
 
-        if (empty($events)) {
-            throw new StreamNotFoundException(
-                sprintf(
-                    'Stream with name %s cannot be found',
-                    $streamName->toString()
-                )
-            );
-        }
-
         return $events;
     }
 
