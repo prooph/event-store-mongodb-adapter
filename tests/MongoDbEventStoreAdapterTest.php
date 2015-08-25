@@ -137,16 +137,6 @@ final class MongoDbEventStoreAdapterTest extends TestCase
 
     /**
      * @test
-     * @expectedException Prooph\EventStore\Exception\StreamNotFoundException
-     * @expectedExceptionMessage Stream with name Invalid\Stream\Name cannot be found
-     */
-    public function it_throws_exception_when_no_stream_found()
-    {
-        $this->adapter->load(new StreamName('Invalid\Stream\Name'));
-    }
-
-    /**
-     * @test
      * @expectedException Assert\InvalidArgumentException
      * @expectedExceptionMessage Mongo database name is missing
      */
@@ -222,8 +212,6 @@ final class MongoDbEventStoreAdapterTest extends TestCase
 
     /**
      * @test
-     * @expectedException Prooph\EventStore\Exception\StreamNotFoundException
-     * @expectedExceptionMessage Stream with name Prooph\Model\User cannot be found
      */
     public function it_can_rollback_transaction()
     {
@@ -235,13 +223,13 @@ final class MongoDbEventStoreAdapterTest extends TestCase
 
         $this->adapter->rollback();
 
-        $this->adapter->loadEventsByMetadataFrom(new StreamName('Prooph\Model\User'), ['tag' => 'person']);
+        $result = $this->adapter->loadEventsByMetadataFrom(new StreamName('Prooph\Model\User'), ['tag' => 'person']);
+
+        $this->assertEmpty($result);
     }
 
     /**
      * @test
-     * @expectedException Prooph\EventStore\Exception\StreamNotFoundException
-     * @expectedExceptionMessage Stream with name Prooph\Model\User cannot be found
      */
     public function it_rolls_back_transaction_after_timeout()
     {
@@ -268,7 +256,9 @@ final class MongoDbEventStoreAdapterTest extends TestCase
 
         sleep(3);
 
-        $this->adapter->loadEventsByMetadataFrom(new StreamName('Prooph\Model\User'), ['tag' => 'person']);
+        $result = $this->adapter->loadEventsByMetadataFrom(new StreamName('Prooph\Model\User'), ['tag' => 'person']);
+
+        $this->assertEmpty($result);
     }
 
     /**
