@@ -1,6 +1,7 @@
 # event-store-mongodb-adapter
 
 [![Build Status](https://travis-ci.org/prooph/event-store-mongodb-adapter.svg?branch=master)](https://travis-ci.org/prooph/event-store-mongodb-adapter)
+[![Coverage Status](https://coveralls.io/repos/prooph/event-store-mongodb-adapter/badge.svg?branch=master&service=github)](https://coveralls.io/github/prooph/event-store-mongodb-adapter?branch=master)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/prooph/improoph)
 
 MongoDB Adapter for [ProophEventStore](https://github.com/prooph/event-store)
