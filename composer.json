@@ -22,7 +22,7 @@
         "ext-mongo": ">=1.5"
     },
     "require-dev": {
-        "prooph/event-store": "dev-5.0-beta",
+        "prooph/event-store": "dev-master",
         "phpunit/phpunit": "4.7.*",
         "fabpot/php-cs-fixer": "1.7.*",
         "satooshi/php-coveralls": "dev-master"
