@@ -94,12 +94,20 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     private $transactionTimeout = 50;
 
     /**
+     * Custom sourceType to collection mapping
+     *
+     * @var array
+     */
+    private $streamTableMap = [];
+
+    /**
      * @param MessageFactory $messageFactory
      * @param MessageConverter $messageConverter
      * @param \MongoClient $mongoClient
      * @param string $dbName
      * @param array|null $writeConcern
      * @param int|null $transactionTimeout
+     * @param array $streamCollectionMap
      */
     public function __construct(
         MessageFactory $messageFactory,
@@ -107,7 +115,8 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
         \MongoClient $mongoClient,
         $dbName,
         array $writeConcern = null,
-        $transactionTimeout = null
+        $transactionTimeout = null,
+        array $streamCollectionMap = []
     ) {
         Assertion::minLength($dbName, 1, 'Mongo database name is missing');
 
@@ -363,10 +372,37 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     private function getCollection(StreamName $streamName)
     {
-        $collection = $this->mongoClient->selectCollection($this->dbName, $streamName);
+        $collection = $this->mongoClient->selectCollection($this->dbName, $this->getCollectionName($streamName));
         $collection->setReadPreference(\MongoClient::RP_PRIMARY);
 
         return $collection;
+    }
+
+    /**
+     * @param StreamName $streamName
+     * @return string
+     */
+    private function getCollectionName(StreamName $streamName)
+    {
+        if (isset($this->streamTableMap[$streamName->toString()])) {
+            $collectionName = $this->streamTableMap[$streamName->toString()];
+        } else {
+            $collectionName = strtolower($this->getShortStreamName($streamName));
+            if (strpos($collectionName, "_stream") === false) {
+                $collectionName.= "_stream";
+            }
+        }
+        return $collectionName;
+    }
+
+    /**
+     * @param StreamName $streamName
+     * @return string
+     */
+    private function getShortStreamName(StreamName $streamName)
+    {
+        $streamName = str_replace('-', '_', $streamName->toString());
+        return implode('', array_slice(explode('\\', $streamName), -1));
     }
 
     /**

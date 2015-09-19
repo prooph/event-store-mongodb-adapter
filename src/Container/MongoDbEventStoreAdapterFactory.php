@@ -69,13 +69,18 @@ final class MongoDbEventStoreAdapterFactory
 
         $timeout = isset($adapterOptions['transaction_timeout']) ? $adapterOptions['transaction_timeout'] : null;
 
+        $streamCollectionMap = isset($adapterOptions['stream_collection_map'])
+            ? $adapterOptions['stream_collection_map']
+            : [];
+
         return new MongoDbEventStoreAdapter(
             $messageFactory,
             $messageConverter,
             $mongoClient,
             $dbName,
             $writeConcern,
-            $timeout
+            $timeout,
+            $streamCollectionMap
         );
     }
 }
