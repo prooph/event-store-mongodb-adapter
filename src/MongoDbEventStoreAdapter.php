@@ -298,7 +298,8 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
         $updateBatch->add(
             [
                 'q' => [
-                    'transaction_id' => $this->transactionId
+                    'transaction_id' => $this->transactionId,
+                    '$isolated' => 1
                 ],
                 'u' => [
                     '$unset' => [
