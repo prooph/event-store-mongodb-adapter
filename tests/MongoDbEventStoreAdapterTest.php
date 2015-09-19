@@ -248,6 +248,41 @@ final class MongoDbEventStoreAdapterTest extends TestCase
     }
 
     /**
+     * @test
+     */
+    public function it_uses_custom_stream_collection_map()
+    {
+        $this->client = new \MongoClient();
+        $dbName = 'mongo_adapter_test';
+
+        $this->client->selectDB($dbName)->drop();
+
+        $this->adapter = new MongoDbEventStoreAdapter(
+            new FQCNMessageFactory(),
+            new NoOpMessageConverter(),
+            $this->client,
+            $dbName,
+            null,
+            3,
+            [
+                'Prooph\Model\User' => 'test_collection_name'
+            ]
+        );
+
+        $testStream = $this->getTestStream();
+
+        $this->adapter->beginTransaction();
+
+        $this->adapter->create($testStream);
+
+        $this->adapter->commit();
+
+        $collectionContent = $this->client->selectCollection($dbName, 'test_collection_name')->find([]);
+
+        $this->assertEquals(1, count($collectionContent));
+    }
+
+    /**
      * @return Stream
      */
     private function getTestStream()

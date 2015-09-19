@@ -98,7 +98,7 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      *
      * @var array
      */
-    private $streamTableMap = [];
+    private $streamCollectionMap = [];
 
     /**
      * @param MessageFactory $messageFactory
@@ -124,6 +124,7 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
         $this->messageConverter = $messageConverter;
         $this->mongoClient      = $mongoClient;
         $this->dbName           = $dbName;
+        $this->streamCollectionMap = $streamCollectionMap;
 
         if (null !== $writeConcern) {
             $this->writeConcern = $writeConcern;
@@ -384,14 +385,15 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     private function getCollectionName(StreamName $streamName)
     {
-        if (isset($this->streamTableMap[$streamName->toString()])) {
-            $collectionName = $this->streamTableMap[$streamName->toString()];
+        if (isset($this->streamCollectionMap[$streamName->toString()])) {
+            $collectionName = $this->streamCollectionMap[$streamName->toString()];
         } else {
             $collectionName = strtolower($this->getShortStreamName($streamName));
             if (strpos($collectionName, "_stream") === false) {
                 $collectionName.= "_stream";
             }
         }
+
         return $collectionName;
     }
 
