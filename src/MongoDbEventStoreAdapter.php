@@ -46,36 +46,14 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     private $mongoClient;
 
     /**
-     * @var \MongoCollection
-     */
-    private $collection;
-
-    /**
-     * @var \MongoDeleteBatch
-     */
-    private $deleteBatch;
-
-    /**
-     * @var \MongoInsertBatch
-     */
-    private $insertBatch;
-
-    /**
-     * @var \MongoUpdateBatch
-     */
-    private $updateBatch;
-
-    /**
      * @var string
      */
     private $dbName;
 
     /**
-     * Name of the mongo db collection
-     *
-     * @var string
+     * @var StreamName
      */
-    private $streamCollectionName = 'event_stream';
+    private $currentStreamName;
 
     /**
      * @var array
@@ -121,7 +99,6 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      * @param \MongoClient $mongoClient
      * @param string $dbName
      * @param array|null $writeConcern
-     * @param string|null $streamCollectionName
      * @param int|null $transactionTimeout
      */
     public function __construct(
@@ -130,7 +107,6 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
         \MongoClient $mongoClient,
         $dbName,
         array $writeConcern = null,
-        $streamCollectionName = null,
         $transactionTimeout = null
     ) {
         Assertion::minLength($dbName, 1, 'Mongo database name is missing');
@@ -139,12 +115,6 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
         $this->messageConverter = $messageConverter;
         $this->mongoClient      = $mongoClient;
         $this->dbName           = $dbName;
-
-        if (null !== $streamCollectionName) {
-            Assertion::minLength($streamCollectionName, 1, 'Stream collection name must be a string with min length 1');
-
-            $this->streamCollectionName = $streamCollectionName;
-        }
 
         if (null !== $writeConcern) {
             $this->writeConcern = $writeConcern;
@@ -174,9 +144,11 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
             );
         }
 
-        $this->createIndexes();
+        $streamName = $stream->streamName();
 
-        $this->appendTo($stream->streamName(), $stream->streamEvents());
+        $this->createIndexes($streamName);
+
+        $this->appendTo($streamName, $stream->streamEvents());
     }
 
     /**
@@ -187,12 +159,16 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function appendTo(StreamName $streamName, array $streamEvents)
     {
+        $this->currentStreamName = $streamName;
+
+        $insertBatch = $this->getInsertBatch($streamName);
+
         foreach ($streamEvents as $streamEvent) {
             $data = $this->prepareEventData($streamName, $streamEvent);
-            $this->getInsertBatch()->add($data);
+            $insertBatch->add($data);
         }
 
-        $this->getInsertBatch()->execute();
+        $insertBatch->execute();
     }
 
     /**
@@ -245,7 +221,7 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function loadEventsByMetadataFrom(StreamName $streamName, array $metadata, $minVersion = null)
     {
-        $collection = $this->getCollection();
+        $collection = $this->getCollection($streamName);
 
         $query = $metadata;
 
@@ -307,7 +283,9 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function commit()
     {
-        $this->getUpdateBatch()->add(
+        $updateBatch = $this->getUpdateBatch($this->currentStreamName);
+
+        $updateBatch->add(
             [
                 'q' => [
                     'transaction_id' => $this->transactionId
@@ -322,7 +300,7 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
             ]
         );
 
-        $this->getUpdateBatch()->execute();
+        $updateBatch->execute();
 
         $this->transactionId = null;
     }
@@ -334,24 +312,27 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function rollback()
     {
-        $this->getDeleteBatch()->add([
+        $deleteBatch = $this->getDeleteBatch($this->currentStreamName);
+
+        $deleteBatch->add([
             'q' => [
                 'transaction_id' => $this->transactionId
             ],
             'limit' => 0
         ]);
 
-        $this->getDeleteBatch()->execute();
+        $deleteBatch->execute();
 
         $this->transactionId = null;
     }
 
     /**
+     * @param StreamName $streamName
      * @return void
      */
-    private function createIndexes()
+    private function createIndexes(StreamName $streamName)
     {
-        $collection = $this->getCollection();
+        $collection = $this->getCollection($streamName);
 
         $collection->createIndex(
             [
@@ -377,57 +358,47 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     /**
      * Get mongo db stream collection
      *
+     * @param StreamName $streamName
      * @return \MongoCollection
      */
-    private function getCollection()
+    private function getCollection(StreamName $streamName)
     {
-        if (null === $this->collection) {
-            $this->collection = $this->mongoClient->selectCollection($this->dbName, $this->streamCollectionName);
-            $this->collection->setReadPreference(\MongoClient::RP_PRIMARY);
-        }
+        $collection = $this->mongoClient->selectCollection($this->dbName, $streamName);
+        $collection->setReadPreference(\MongoClient::RP_PRIMARY);
 
-        return $this->collection;
+        return $collection;
     }
 
     /**
      * Get mongo db insert batch
      *
+     * @param StreamName $streamName
      * @return \MongoInsertBatch
      */
-    private function getInsertBatch()
+    private function getInsertBatch(StreamName $streamName)
     {
-        if (null === $this->insertBatch) {
-            $this->insertBatch = new \MongoInsertBatch($this->getCollection(), $this->writeConcern);
-        }
-
-        return $this->insertBatch;
+        return $this->insertBatch = new \MongoInsertBatch($this->getCollection($streamName), $this->writeConcern);
     }
 
     /**
      * Get mongo db update batch
      *
+     * @param StreamName $streamName
      * @return \MongoUpdateBatch
      */
-    private function getUpdateBatch()
+    private function getUpdateBatch(StreamName $streamName)
     {
-        if (null === $this->updateBatch) {
-            $this->updateBatch = new \MongoUpdateBatch($this->getCollection(), $this->writeConcern);
-        }
-
-        return $this->updateBatch;
+        return new \MongoUpdateBatch($this->getCollection($streamName), $this->writeConcern);
     }
 
     /**
      * Get mongo db delete batch
      *
+     * @param StreamName $streamName
      * @return \MongoDeleteBatch
      */
-    private function getDeleteBatch()
+    private function getDeleteBatch(StreamName $streamName)
     {
-        if (null === $this->deleteBatch) {
-            $this->deleteBatch = new \MongoDeleteBatch($this->getCollection(), $this->writeConcern);
-        }
-
-        return $this->deleteBatch;
+        return new \MongoDeleteBatch($this->getCollection($streamName), $this->writeConcern);
     }
 }

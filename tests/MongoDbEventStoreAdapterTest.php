@@ -147,28 +147,6 @@ final class MongoDbEventStoreAdapterTest extends TestCase
 
     /**
      * @test
-     */
-    public function it_creates_custom_collection_name()
-    {
-        $client = new \MongoClient();
-        $dbName = 'mongo_adapter_test';
-
-        $client->selectDB($dbName)->drop();
-
-        $this->adapter = new MongoDbEventStoreAdapter(
-            new FQCNMessageFactory(),
-            new NoOpMessageConverter(),
-            $client,
-            $dbName,
-            [],
-            'custom_collection'
-        );
-
-        $this->adapter->create($this->getTestStream());
-    }
-
-    /**
-     * @test
      * @expectedException Prooph\EventStore\Exception\RuntimeException
      */
     public function it_throws_exception_when_empty_stream_created()
@@ -189,7 +167,6 @@ final class MongoDbEventStoreAdapterTest extends TestCase
             new \MongoClient(),
             'mongo_adapter_test',
             null,
-            null,
             'invalid'
         );
     }
@@ -204,7 +181,6 @@ final class MongoDbEventStoreAdapterTest extends TestCase
             new NoOpMessageConverter(),
             new \MongoClient(),
             'mongo_adapter_test',
-            null,
             null,
             10
         );
@@ -243,7 +219,6 @@ final class MongoDbEventStoreAdapterTest extends TestCase
             new NoOpMessageConverter(),
             $this->client,
             $dbName,
-            null,
             null,
             3
         );

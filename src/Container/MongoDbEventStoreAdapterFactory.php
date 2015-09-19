@@ -67,8 +67,6 @@ final class MongoDbEventStoreAdapterFactory
 
         $writeConcern = isset($adapterOptions['write_concern']) ? $adapterOptions['write_concern'] : [];
 
-        $streamCollectionName = isset($adapterOptions['collection_name']) ? $adapterOptions['collection_name'] : null;
-
         $timeout = isset($adapterOptions['transaction_timeout']) ? $adapterOptions['transaction_timeout'] : null;
 
         return new MongoDbEventStoreAdapter(
@@ -77,7 +75,6 @@ final class MongoDbEventStoreAdapterFactory
             $mongoClient,
             $dbName,
             $writeConcern,
-            $streamCollectionName,
             $timeout
         );
     }
