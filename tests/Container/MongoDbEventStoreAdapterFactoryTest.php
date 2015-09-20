@@ -29,13 +29,11 @@ class MongoDbEventStoreAdapterFactoryTest extends TestCase
     {
         $client = new \MongoClient();
         $dbName = 'mongo_adapter_test';
-        $collectionName = 'stream_collection';
 
         $config = [];
         $config['prooph']['event_store']['adapter']['options'] = [
             'mongo_connection_alias' => 'mongo_connection',
             'db_name' => $dbName,
-            'collection_name' => $collectionName
         ];
 
         $mock = $this->getMockForAbstractClass(ContainerInterface::class);

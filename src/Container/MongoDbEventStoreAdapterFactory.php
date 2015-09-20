@@ -67,9 +67,11 @@ final class MongoDbEventStoreAdapterFactory
 
         $writeConcern = isset($adapterOptions['write_concern']) ? $adapterOptions['write_concern'] : [];
 
-        $streamCollectionName = isset($adapterOptions['collection_name']) ? $adapterOptions['collection_name'] : null;
-
         $timeout = isset($adapterOptions['transaction_timeout']) ? $adapterOptions['transaction_timeout'] : null;
+
+        $streamCollectionMap = isset($adapterOptions['stream_collection_map'])
+            ? $adapterOptions['stream_collection_map']
+            : [];
 
         return new MongoDbEventStoreAdapter(
             $messageFactory,
@@ -77,8 +79,8 @@ final class MongoDbEventStoreAdapterFactory
             $mongoClient,
             $dbName,
             $writeConcern,
-            $streamCollectionName,
-            $timeout
+            $timeout,
+            $streamCollectionMap
         );
     }
 }
