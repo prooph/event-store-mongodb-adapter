@@ -422,7 +422,7 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     private function getInsertBatch(StreamName $streamName)
     {
-        return $this->insertBatch = new \MongoInsertBatch($this->getCollection($streamName), $this->writeConcern);
+        return new \MongoInsertBatch($this->getCollection($streamName), $this->writeConcern);
     }
 
     /**
