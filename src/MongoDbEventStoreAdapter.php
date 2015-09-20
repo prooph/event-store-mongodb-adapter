@@ -169,6 +169,10 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function appendTo(StreamName $streamName, array $streamEvents)
     {
+        if ($this->currentStreamName !== null && $this->currentStreamName->toString() !== $streamName->toString()) {
+            throw new \RuntimeException('Cannot write to different stream streams in one transaction');
+        }
+
         $this->currentStreamName = $streamName;
 
         $insertBatch = $this->getInsertBatch($streamName);
@@ -314,6 +318,7 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
         $updateBatch->execute();
 
         $this->transactionId = null;
+        $this->currentStreamName = null;
     }
 
     /**
@@ -335,6 +340,7 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
         $deleteBatch->execute();
 
         $this->transactionId = null;
+        $this->currentStreamName = null;
     }
 
     /**

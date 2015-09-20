@@ -283,6 +283,48 @@ final class MongoDbEventStoreAdapterTest extends TestCase
     }
 
     /**
+     * @test
+     * @expectedException RuntimeException
+     * @expectedExceptionMessage Cannot write to different stream streams in one transaction
+     */
+    public function it_throws_exception_when_trying_to_write_to_different_streams_in_one_transaction()
+    {
+        $this->client = new \MongoClient();
+        $dbName = 'mongo_adapter_test';
+
+        $this->client->selectDB($dbName)->drop();
+
+        $this->adapter = new MongoDbEventStoreAdapter(
+            new FQCNMessageFactory(),
+            new NoOpMessageConverter(),
+            $this->client,
+            $dbName,
+            null,
+            3,
+            [
+                'Prooph\Model\User' => 'test_collection_name'
+            ]
+        );
+
+        $testStream = $this->getTestStream();
+
+        $this->adapter->beginTransaction();
+
+        $this->adapter->create($testStream);
+
+        $streamEvent = UserCreated::with(
+            ['name' => 'Max Mustermann', 'email' => 'contact@prooph.de'],
+            1
+        );
+
+        $streamEvent = $streamEvent->withAddedMetadata('tag', 'person');
+
+        $this->adapter->appendTo(new StreamName('another_one'), [$streamEvent]);
+
+        $this->adapter->commit();
+    }
+
+    /**
      * @return Stream
      */
     private function getTestStream()
