@@ -17,15 +17,18 @@
     "require": {
         "php": ">=5.5",
         "prooph/event-store": "dev-develop",
-        "container-interop/container-interop" : "~1.1",
         "beberlei/assert": "~2.0",
         "prooph/common": "^3.5",
         "ext-mongo": ">=1.5"
     },
     "require-dev": {
+        "container-interop/container-interop": "^1.1",
         "phpunit/phpunit": "4.8.*",
         "fabpot/php-cs-fixer": "1.7.*",
         "satooshi/php-coveralls": "dev-master"
+    },
+    "suggest": {
+        "container-interop/container-interop" : "For usage of provided factories"
     },
     "autoload": {
         "psr-4": {
