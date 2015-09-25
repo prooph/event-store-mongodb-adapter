@@ -12,6 +12,7 @@
 namespace Prooph\EventStore\Adapter\MongoDb;
 
 use Assert\Assertion;
+use Iterator;
 use Prooph\Common\Messaging\Message;
 use Prooph\Common\Messaging\MessageConverter;
 use Prooph\Common\Messaging\MessageFactory;
@@ -54,19 +55,6 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      * @var StreamName
      */
     private $currentStreamName;
-
-    /**
-     * @var array
-     */
-    private $standardColumns = [
-        '_id',
-        'event_name',
-        'created_at',
-        'payload',
-        'version',
-        'transaction_id',
-        'expire_at'
-    ];
 
     /**
      * The transaction id, if currently in transaction, otherwise null
@@ -144,7 +132,7 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function create(Stream $stream)
     {
-        if (count($stream->streamEvents()) === 0) {
+        if (!$stream->streamEvents()->valid()) {
             throw new RuntimeException(
                 sprintf(
                     "Cannot create empty stream %s. %s requires at least one event to extract metadata information",
@@ -163,11 +151,11 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
 
     /**
      * @param StreamName $streamName
-     * @param Message[] $streamEvents
+     * @param Iterator $streamEvents
      * @throws StreamNotFoundException If stream does not exist
      * @return void
      */
-    public function appendTo(StreamName $streamName, array $streamEvents)
+    public function appendTo(StreamName $streamName, Iterator $streamEvents)
     {
         if ($this->currentStreamName !== null && $this->currentStreamName->toString() !== $streamName->toString()) {
             throw new \RuntimeException('Cannot write to different stream streams in one transaction');
@@ -230,7 +218,7 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      * @param StreamName $streamName
      * @param array $metadata
      * @param null|int $minVersion
-     * @return Message[]
+     * @return MongoDbStreamIterator
      * @throws StreamNotFoundException
      */
     public function loadEventsByMetadataFrom(StreamName $streamName, array $metadata, $minVersion = null)
@@ -246,34 +234,9 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
         $query['expire_at'] = ['$exists' => false];
         $query['transaction_id'] = ['$exists' => false];
 
-        $results = $collection->find($query)->sort(['version' => $collection::ASCENDING]);
+        $cursor = $collection->find($query)->sort(['version' => $collection::ASCENDING]);
 
-        $events = [];
-
-        foreach ($results as $eventData) {
-            //Add metadata stored in table
-            foreach ($eventData as $key => $value) {
-                if (! in_array($key, $this->standardColumns)) {
-                    $metadata[$key] = $value;
-                }
-            }
-
-            $createdAt = \DateTimeImmutable::createFromFormat(
-                'Y-m-d\TH:i:s.u',
-                $eventData['created_at'],
-                new \DateTimeZone('UTC')
-            );
-
-            $events[] = $this->messageFactory->createMessageFromArray($eventData['event_name'], [
-                'uuid' => $eventData['_id'],
-                'version' => (int) $eventData['version'],
-                'created_at' => $createdAt,
-                'payload' => $eventData['payload'],
-                'metadata' => $metadata
-            ]);
-        }
-
-        return $events;
+        return new MongoDbStreamIterator($cursor, $this->messageFactory, $metadata);
     }
 
     /**
