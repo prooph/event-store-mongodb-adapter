@@ -28,7 +28,7 @@
         "satooshi/php-coveralls": "dev-master"
     },
     "suggest": {
-        "container-interop/container-interop" : "For usage of provided factories"
+        "container-interop/container-interop": "For usage of provided factories"
     },
     "autoload": {
         "psr-4": {
