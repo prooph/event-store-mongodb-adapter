@@ -71,7 +71,7 @@ final class MongoDbEventStoreAdapterTest extends TestCase
 
         $this->adapter->commit();
 
-        $streamEvents = $this->adapter->loadEventsByMetadataFrom(new StreamName('Prooph\Model\User'), ['tag' => 'person']);
+        $streamEvents = $this->adapter->loadEvents(new StreamName('Prooph\Model\User'), ['tag' => 'person']);
 
         $count = 0;
         foreach ($streamEvents as $event) {
@@ -120,6 +120,104 @@ final class MongoDbEventStoreAdapterTest extends TestCase
     }
 
     /**
+     * @test
+     */
+    public function it_replays()
+    {
+        $testStream = $this->getTestStream();
+
+        $this->adapter->beginTransaction();
+
+        $this->adapter->create($testStream);
+
+        $this->adapter->commit();
+
+        $streamEvent = UsernameChanged::with(
+            ['name' => 'John Doe'],
+            2
+        );
+
+        $streamEvent = $streamEvent->withAddedMetadata('tag', 'person');
+
+        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), new \ArrayIterator([$streamEvent]));
+
+        $streamEvents = $this->adapter->replay(new StreamName('Prooph\Model\User'), null, ['tag' => 'person']);
+
+        $count = 0;
+        foreach ($streamEvents as $event) {
+            $count++;
+        }
+        $this->assertEquals(2, $count);
+
+        $testStream->streamEvents()->rewind();
+        $streamEvents->rewind();
+
+        $testEvent = $testStream->streamEvents()->current();
+        $event = $streamEvents->current();
+
+        $this->assertEquals($testEvent->uuid()->toString(), $event->uuid()->toString());
+        $this->assertEquals($testEvent->createdAt()->format('Y-m-d\TH:i:s.uO'), $event->createdAt()->format('Y-m-d\TH:i:s.uO'));
+        $this->assertEquals('Prooph\EventStoreTest\Mock\UserCreated', $event->messageName());
+        $this->assertEquals('contact@prooph.de', $event->payload()['email']);
+        $this->assertEquals(1, $event->version());
+
+        $streamEvents->next();
+        $event = $streamEvents->current();
+
+        $this->assertEquals($streamEvent->uuid()->toString(), $event->uuid()->toString());
+        $this->assertEquals($streamEvent->createdAt()->format('Y-m-d\TH:i:s.uO'), $event->createdAt()->format('Y-m-d\TH:i:s.uO'));
+        $this->assertEquals('Prooph\EventStoreTest\Mock\UsernameChanged', $event->messageName());
+        $this->assertEquals('John Doe', $event->payload()['name']);
+        $this->assertEquals(2, $event->version());
+    }
+
+    /**
+     * @test
+     */
+    public function it_replays_from_specific_date()
+    {
+        $testStream = $this->getTestStream();
+
+        $this->adapter->beginTransaction();
+
+        $this->adapter->create($testStream);
+
+        $this->adapter->commit();
+
+        sleep(1);
+
+        $since = new \DateTime('now', new \DateTimeZone('UTC'));
+
+        $streamEvent = UsernameChanged::with(
+            ['name' => 'John Doe'],
+            2
+        );
+
+        $streamEvent = $streamEvent->withAddedMetadata('tag', 'person');
+
+        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), new \ArrayIterator([$streamEvent]));
+
+        $streamEvents = $this->adapter->replay(new StreamName('Prooph\Model\User'), $since, ['tag' => 'person']);
+
+        $count = 0;
+        foreach ($streamEvents as $event) {
+            $count++;
+        }
+        $this->assertEquals(1, $count);
+
+        $testStream->streamEvents()->rewind();
+        $streamEvents->rewind();
+
+        $event = $streamEvents->current();
+
+        $this->assertEquals($streamEvent->uuid()->toString(), $event->uuid()->toString());
+        $this->assertEquals($streamEvent->createdAt()->format('Y-m-d\TH:i:s.uO'), $event->createdAt()->format('Y-m-d\TH:i:s.uO'));
+        $this->assertEquals('Prooph\EventStoreTest\Mock\UsernameChanged', $event->messageName());
+        $this->assertEquals('John Doe', $event->payload()['name']);
+        $this->assertEquals(2, $event->version());
+    }
+
+        /**
      * @test
      */
     public function it_loads_events_from_min_version_on()
@@ -225,7 +323,7 @@ final class MongoDbEventStoreAdapterTest extends TestCase
 
         $this->adapter->rollback();
 
-        $result = $this->adapter->loadEventsByMetadataFrom(new StreamName('Prooph\Model\User'), ['tag' => 'person']);
+        $result = $this->adapter->loadEvents(new StreamName('Prooph\Model\User'), ['tag' => 'person']);
 
         $this->assertFalse($result->valid());
     }
@@ -257,7 +355,7 @@ final class MongoDbEventStoreAdapterTest extends TestCase
 
         sleep(3);
 
-        $result = $this->adapter->loadEventsByMetadataFrom(new StreamName('Prooph\Model\User'), ['tag' => 'person']);
+        $result = $this->adapter->loadEvents(new StreamName('Prooph\Model\User'), ['tag' => 'person']);
 
         $this->assertFalse($result->valid());
     }

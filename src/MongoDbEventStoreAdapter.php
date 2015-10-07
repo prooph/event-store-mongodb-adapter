@@ -12,6 +12,7 @@
 namespace Prooph\EventStore\Adapter\MongoDb;
 
 use Assert\Assertion;
+use DateTimeInterface;
 use Iterator;
 use Prooph\Common\Messaging\Message;
 use Prooph\Common\Messaging\MessageConverter;
@@ -209,7 +210,7 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function load(StreamName $streamName, $minVersion = null)
     {
-        $events = $this->loadEventsByMetadataFrom($streamName, [], $minVersion);
+        $events = $this->loadEvents($streamName, [], $minVersion);
 
         return new Stream($streamName, $events);
     }
@@ -221,7 +222,7 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      * @return MongoDbStreamIterator
      * @throws StreamNotFoundException
      */
-    public function loadEventsByMetadataFrom(StreamName $streamName, array $metadata, $minVersion = null)
+    public function loadEvents(StreamName $streamName, array $metadata = [], $minVersion = null)
     {
         $collection = $this->getCollection($streamName);
 
@@ -229,6 +230,30 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
 
         if (null !== $minVersion) {
             $query['version'] = ['$gte' => $minVersion];
+        }
+
+        $query['expire_at'] = ['$exists' => false];
+        $query['transaction_id'] = ['$exists' => false];
+
+        $cursor = $collection->find($query)->sort(['version' => $collection::ASCENDING]);
+
+        return new MongoDbStreamIterator($cursor, $this->messageFactory, $metadata);
+    }
+
+    /**
+     * @param StreamName $streamName
+     * @param DateTimeInterface|null $since
+     * @param array $metadata
+     * @return MongoDbStreamIterator
+     */
+    public function replay(StreamName $streamName, DateTimeInterface $since = null, array $metadata = [])
+    {
+        $collection = $this->getCollection($streamName);
+
+        $query = $metadata;
+
+        if (null !== $since) {
+            $query['created_at'] = ['$gt' => $since->format('Y-m-d\TH:i:s.u')];
         }
 
         $query['expire_at'] = ['$exists' => false];
