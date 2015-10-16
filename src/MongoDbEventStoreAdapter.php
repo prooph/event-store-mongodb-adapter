@@ -259,7 +259,10 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
         $query['expire_at'] = ['$exists' => false];
         $query['transaction_id'] = ['$exists' => false];
 
-        $cursor = $collection->find($query)->sort(['version' => $collection::ASCENDING]);
+        $cursor = $collection->find($query)->sort([
+            'created_at' => $collection::ASCENDING,
+            'version' => $collection::ASCENDING
+        ]);
 
         return new MongoDbStreamIterator($cursor, $this->messageFactory, $metadata);
     }
