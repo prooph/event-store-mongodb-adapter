@@ -70,6 +70,8 @@ final class MongoDbStreamIterator implements Iterator
     {
         $current = $this->innerIterator->current();
 
+        $metadata = [];
+
         foreach ($current as $key => $value) {
             if (! in_array($key, $this->standardColumns)) {
                 $metadata[$key] = $value;
@@ -87,7 +89,7 @@ final class MongoDbStreamIterator implements Iterator
             'version' => (int) $current['version'],
             'created_at' => $createdAt,
             'payload' => $current['payload'],
-            'metadata' => $this->metadata
+            'metadata' => $metadata
         ]);
     }
 
