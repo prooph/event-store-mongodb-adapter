@@ -9,7 +9,7 @@
  * Date: 08/20/15 - 17:51
  */
 
-namespace Prooph\EventStore\Adapter\MongDbTest\Service;
+namespace ProophTest\EventStore\Adapter\MongoDb\Service;
 
 use Interop\Container\ContainerInterface;
 use PHPUnit_Framework_TestCase as TestCase;
@@ -18,7 +18,7 @@ use Prooph\EventStore\Adapter\MongoDb\Container\MongoDbEventStoreAdapterFactory;
 
 /**
  * Class MongoDbEventStoreAdapterFactoryTest
- * @package Prooph\EventStore\Adapter\MongDbTest\Container
+ * @package ProophTest\EventStore\Adapter\MongoDb\Service
  */
 class MongoDbEventStoreAdapterFactoryTest extends TestCase
 {

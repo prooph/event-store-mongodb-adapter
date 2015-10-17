@@ -9,7 +9,7 @@
  * Date: 08/08/15 - 20:32
  */
 
-namespace Prooph\EventStore\Adapter\MongDbTest;
+namespace ProophTest\EventStore\Adapter\MongoDb;
 
 use PHPUnit_Framework_TestCase as TestCase;
 use Prooph\Common\Messaging\FQCNMessageFactory;
@@ -17,12 +17,12 @@ use Prooph\Common\Messaging\NoOpMessageConverter;
 use Prooph\EventStore\Adapter\MongoDb\MongoDbEventStoreAdapter;
 use Prooph\EventStore\Stream\Stream;
 use Prooph\EventStore\Stream\StreamName;
-use Prooph\EventStoreTest\Mock\UserCreated;
-use Prooph\EventStoreTest\Mock\UsernameChanged;
+use ProophTest\EventStore\Mock\UserCreated;
+use ProophTest\EventStore\Mock\UsernameChanged;
 
 /**
  * Class MongoDbEventStoreAdapterTest
- * @package Prooph\EventStore\Adapter\MongDbTest
+ * @package ProophTest\EventStore\Adapter\MongoDb
  */
 final class MongoDbEventStoreAdapterTest extends TestCase
 {
@@ -87,7 +87,7 @@ final class MongoDbEventStoreAdapterTest extends TestCase
 
         $this->assertEquals($testEvent->uuid()->toString(), $event->uuid()->toString());
         $this->assertEquals($testEvent->createdAt()->format('Y-m-d\TH:i:s.uO'), $event->createdAt()->format('Y-m-d\TH:i:s.uO'));
-        $this->assertEquals('Prooph\EventStoreTest\Mock\UserCreated', $event->messageName());
+        $this->assertEquals('ProophTest\EventStore\Mock\UserCreated', $event->messageName());
         $this->assertEquals('contact@prooph.de', $event->payload()['email']);
         $this->assertEquals(1, $event->version());
         $this->assertEquals(['tag' => 'person'], $event->metadata());
@@ -167,7 +167,7 @@ final class MongoDbEventStoreAdapterTest extends TestCase
 
         $this->assertEquals($testEvent->uuid()->toString(), $event->uuid()->toString());
         $this->assertEquals($testEvent->createdAt()->format('Y-m-d\TH:i:s.uO'), $event->createdAt()->format('Y-m-d\TH:i:s.uO'));
-        $this->assertEquals('Prooph\EventStoreTest\Mock\UserCreated', $event->messageName());
+        $this->assertEquals('ProophTest\EventStore\Mock\UserCreated', $event->messageName());
         $this->assertEquals('contact@prooph.de', $event->payload()['email']);
         $this->assertEquals(1, $event->version());
 
@@ -176,7 +176,7 @@ final class MongoDbEventStoreAdapterTest extends TestCase
 
         $this->assertEquals($streamEvent->uuid()->toString(), $event->uuid()->toString());
         $this->assertEquals($streamEvent->createdAt()->format('Y-m-d\TH:i:s.uO'), $event->createdAt()->format('Y-m-d\TH:i:s.uO'));
-        $this->assertEquals('Prooph\EventStoreTest\Mock\UsernameChanged', $event->messageName());
+        $this->assertEquals('ProophTest\EventStore\Mock\UsernameChanged', $event->messageName());
         $this->assertEquals('John Doe', $event->payload()['name']);
         $this->assertEquals(2, $event->version());
     }
@@ -222,7 +222,7 @@ final class MongoDbEventStoreAdapterTest extends TestCase
 
         $this->assertEquals($streamEvent->uuid()->toString(), $event->uuid()->toString());
         $this->assertEquals($streamEvent->createdAt()->format('Y-m-d\TH:i:s.uO'), $event->createdAt()->format('Y-m-d\TH:i:s.uO'));
-        $this->assertEquals('Prooph\EventStoreTest\Mock\UsernameChanged', $event->messageName());
+        $this->assertEquals('ProophTest\EventStore\Mock\UsernameChanged', $event->messageName());
         $this->assertEquals('John Doe', $event->payload()['name']);
         $this->assertEquals(2, $event->version());
     }
