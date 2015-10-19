@@ -49,8 +49,7 @@ final class MongoDbEventStoreAdapterFactory
 
         if (!isset($adapterOptions['db_name'])) {
             throw ConfigurationException::configurationError(
-                'Mongo database name is missing
-                '
+                'Mongo database name is missing'
             );
         }
 
