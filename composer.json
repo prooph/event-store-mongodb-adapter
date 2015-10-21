@@ -16,7 +16,7 @@
     ],
     "require": {
         "php": ">=5.5",
-        "prooph/event-store": "dev-develop",
+        "prooph/event-store": "6.0-beta",
         "beberlei/assert": "~2.0",
         "prooph/common": "^3.5",
         "ext-mongo": ">=1.5"
