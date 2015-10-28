@@ -509,6 +509,24 @@ final class MongoDbEventStoreAdapterTest extends TestCase
     }
 
     /**
+     * @test
+     */
+    public function it_can_commit_empty_transaction()
+    {
+        $this->adapter->beginTransaction();
+        $this->adapter->commit();
+    }
+
+    /**
+     * @test
+     */
+    public function it_can_rollback_empty_transaction()
+    {
+        $this->adapter->beginTransaction();
+        $this->adapter->rollback();
+    }
+
+    /**
      * @return Stream
      */
     private function getTestStream()
