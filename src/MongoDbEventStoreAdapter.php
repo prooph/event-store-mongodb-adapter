@@ -288,6 +288,11 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function commit()
     {
+        if (! $this->currentStreamName) {
+            $this->transactionId = null;
+            return;
+        }
+
         $updateBatch = $this->getUpdateBatch($this->currentStreamName);
 
         $updateBatch->add(
@@ -319,6 +324,11 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function rollback()
     {
+        if (! $this->currentStreamName) {
+            $this->transactionId = null;
+            return;
+        }
+
         $deleteBatch = $this->getDeleteBatch($this->currentStreamName);
 
         $deleteBatch->add([
