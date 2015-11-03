@@ -12,37 +12,38 @@
 namespace ProophTest\EventStore\Adapter\MongoDb\Service;
 
 use Interop\Container\ContainerInterface;
+use MongoDB\Driver\Manager;
 use PHPUnit_Framework_TestCase as TestCase;
-use Prooph\EventStore\Adapter\MongoDb\MongoDbEventStoreAdapter;
-use Prooph\EventStore\Adapter\MongoDb\Container\MongoDbEventStoreAdapterFactory;
+use Prooph\EventStore\Adapter\MongoDb\MongoDBEventStoreAdapter;
+use Prooph\EventStore\Adapter\MongoDb\Container\MongoDBEventStoreAdapterFactory;
 
 /**
- * Class MongoDbEventStoreAdapterFactoryTest
+ * Class MongoDBEventStoreAdapterFactoryTest
  * @package ProophTest\EventStore\Adapter\MongoDb\Service
  */
-class MongoDbEventStoreAdapterFactoryTest extends TestCase
+class MongoDBEventStoreAdapterFactoryTest extends TestCase
 {
     /**
      * @test
      */
     public function it_creates_adapter()
     {
-        $client = new \MongoClient();
+        $manager = new Manager('mongodb://localhost:27017');
         $dbName = 'mongo_adapter_test';
 
         $config = [];
         $config['prooph']['event_store']['adapter']['options'] = [
-            'mongo_connection_alias' => 'mongo_connection',
+            'mongo_manager' => 'mongo_manager',
             'db_name' => $dbName,
         ];
 
         $mock = $this->getMockForAbstractClass(ContainerInterface::class);
         $mock->expects($this->at(0))->method('get')->with('config')->will($this->returnValue($config));
-        $mock->expects($this->at(1))->method('get')->with('mongo_connection')->will($this->returnValue($client));
+        $mock->expects($this->at(1))->method('get')->with('mongo_manager')->will($this->returnValue($manager));
 
-        $factory = new MongoDbEventStoreAdapterFactory();
+        $factory = new MongoDBEventStoreAdapterFactory();
         $adapter = $factory($mock);
 
-        $this->assertInstanceOf(MongoDbEventStoreAdapter::class, $adapter);
+        $this->assertInstanceOf(MongoDBEventStoreAdapter::class, $adapter);
     }
 }

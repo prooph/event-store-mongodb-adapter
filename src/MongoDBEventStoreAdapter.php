@@ -14,6 +14,13 @@ namespace Prooph\EventStore\Adapter\MongoDb;
 use Assert\Assertion;
 use DateTimeInterface;
 use Iterator;
+use MongoDB\BSON\UTCDatetime;
+use MongoDB\Driver\BulkWrite;
+use MongoDB\Driver\Manager;
+use MongoDB\Driver\Query;
+use MongoDB\Driver\ReadPreference;
+use MongoDB\Driver\WriteConcern;
+use MongoDB\Operation\CreateIndexes;
 use Prooph\Common\Messaging\Message;
 use Prooph\Common\Messaging\MessageConverter;
 use Prooph\Common\Messaging\MessageFactory;
@@ -23,14 +30,15 @@ use Prooph\EventStore\Exception\RuntimeException;
 use Prooph\EventStore\Exception\StreamNotFoundException;
 use Prooph\EventStore\Stream\Stream;
 use Prooph\EventStore\Stream\StreamName;
+use Rhumsaa\Uuid\Uuid;
 
 /**
  * EventStore Adapter for Mongo DB
  *
- * Class MongoDbEventStoreAdapter
+ * Class MongoDBEventStoreAdapter
  * @package Prooph\EventStore\Adapter\MongoDb
  */
-final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
+final class MongoDBEventStoreAdapter implements Adapter, CanHandleTransaction
 {
     /**
      * @var MessageFactory
@@ -43,9 +51,9 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     private $messageConverter;
 
     /**
-     * @var \MongoClient
+     * @var Manager
      */
-    private $mongoClient;
+    private $manager;
 
     /**
      * @var string
@@ -60,20 +68,14 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     /**
      * The transaction id, if currently in transaction, otherwise null
      *
-     * @var \MongoId|null
+     * @var Uuid|null
      */
     private $transactionId;
 
     /**
-     * Mongo DB write concern
-     * The default options can be overridden with the constructor
-     *
-     * @var array
+     * @var WriteConcern|null
      */
-    private $writeConcern = [
-        'w' => 1,
-        'j' => true
-    ];
+    private $writeConcern;
 
     /**
      * Transaction timeout in seconds
@@ -90,20 +92,25 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     private $streamCollectionMap = [];
 
     /**
+     * @var ReadPreference
+     */
+    private $readPreference;
+
+    /**
      * @param MessageFactory $messageFactory
      * @param MessageConverter $messageConverter
-     * @param \MongoClient $mongoClient
+     * @param Manager $manager
      * @param string $dbName
-     * @param array|null $writeConcern
+     * @param WriteConcern|null $writeConcern
      * @param int|null $transactionTimeout
      * @param array $streamCollectionMap
      */
     public function __construct(
         MessageFactory $messageFactory,
         MessageConverter $messageConverter,
-        \MongoClient $mongoClient,
+        Manager $manager,
         $dbName,
-        array $writeConcern = null,
+        WriteConcern $writeConcern = null,
         $transactionTimeout = null,
         array $streamCollectionMap = []
     ) {
@@ -111,13 +118,16 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
 
         $this->messageFactory   = $messageFactory;
         $this->messageConverter = $messageConverter;
-        $this->mongoClient      = $mongoClient;
+        $this->manager          = $manager;
         $this->dbName           = $dbName;
         $this->streamCollectionMap = $streamCollectionMap;
+        $this->readPreference   = new ReadPreference(ReadPreference::RP_PRIMARY);
 
-        if (null !== $writeConcern) {
-            $this->writeConcern = $writeConcern;
+        if (null === $writeConcern) {
+            $writeConcern = new WriteConcern(1, 0, true);
         }
+
+        $this->writeConcern = $writeConcern;
 
         if (null !== $transactionTimeout) {
             Assertion::min($transactionTimeout, 1, 'Transaction timeout must be a positive integer');
@@ -164,14 +174,26 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
 
         $this->currentStreamName = $streamName;
 
-        $insertBatch = $this->getInsertBatch($streamName);
+        $bulk = new BulkWrite(['ordered' => false]);
 
         foreach ($streamEvents as $streamEvent) {
             $data = $this->prepareEventData($streamName, $streamEvent);
-            $insertBatch->add($data);
+            $bulk->insert($data);
         }
 
-        $insertBatch->execute();
+        //var_dump($data);
+        //try {
+
+            $this->manager->executeBulkWrite(
+                $this->dbName . '.' . $this->getCollectionName($this->currentStreamName),
+                $bulk,
+                $this->writeConcern
+            );
+//        } catch (\Exception $e) {
+//            var_dump(get_class($e));
+//            var_dump($e->getMessage());
+//            die;
+//        }
     }
 
     /**
@@ -196,8 +218,11 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
         }
 
         if (null !== $this->transactionId) {
-            $eventData['transaction_id'] = $this->transactionId;
-            $eventData['expire_at'] = new \MongoDate();
+            $eventData['transaction_id'] = $this->transactionId->toString();
+
+            $time = time() . '000';
+
+            $eventData['expire_at'] = new UTCDatetime($time);
         }
 
         return $eventData;
@@ -219,13 +244,11 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      * @param StreamName $streamName
      * @param array $metadata
      * @param null|int $minVersion
-     * @return MongoDbStreamIterator
+     * @return MongoDBStreamIterator
      * @throws StreamNotFoundException
      */
     public function loadEvents(StreamName $streamName, array $metadata = [], $minVersion = null)
     {
-        $collection = $this->getCollection($streamName);
-
         $query = $metadata;
 
         if (null !== $minVersion) {
@@ -235,21 +258,25 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
         $query['expire_at'] = ['$exists' => false];
         $query['transaction_id'] = ['$exists' => false];
 
-        $cursor = $collection->find($query)->sort(['version' => $collection::ASCENDING]);
+        $query = new Query($query, [
+            'sort' => [
+                'version' => 1
+            ]
+        ]);
 
-        return new MongoDbStreamIterator($cursor, $this->messageFactory, $metadata);
+        $namespace = $this->dbName . '.' . $this->getCollectionName($streamName);
+
+        return new MongoDBStreamIterator($this->manager, $namespace, $query, $this->readPreference, $this->messageFactory, $metadata);
     }
 
     /**
      * @param StreamName $streamName
      * @param DateTimeInterface|null $since
      * @param array $metadata
-     * @return MongoDbStreamIterator
+     * @return MongoDBStreamIterator
      */
     public function replay(StreamName $streamName, DateTimeInterface $since = null, array $metadata = [])
     {
-        $collection = $this->getCollection($streamName);
-
         $query = $metadata;
 
         if (null !== $since) {
@@ -259,12 +286,16 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
         $query['expire_at'] = ['$exists' => false];
         $query['transaction_id'] = ['$exists' => false];
 
-        $cursor = $collection->find($query)->sort([
-            'created_at' => $collection::ASCENDING,
-            'version' => $collection::ASCENDING
+        $query = new Query($query, [
+            'sort' => [
+                'created_at' => 1,
+                'version' => 1
+            ]
         ]);
 
-        return new MongoDbStreamIterator($cursor, $this->messageFactory, $metadata);
+        $namespace = $this->dbName . '.' . $this->getCollectionName($streamName);
+
+        return new MongoDBStreamIterator($this->manager, $namespace, $query, $this->readPreference, $this->messageFactory, $metadata);
     }
 
     /**
@@ -278,7 +309,7 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
             throw new \RuntimeException('Transaction already started');
         }
 
-        $this->transactionId = new \MongoId();
+        $this->transactionId = Uuid::uuid4();
     }
 
     /**
@@ -293,25 +324,28 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
             return;
         }
 
-        $updateBatch = $this->getUpdateBatch($this->currentStreamName);
-
-        $updateBatch->add(
+        $bulk = new BulkWrite(['ordered' => false]);
+        $bulk->update(
             [
-                'q' => [
-                    'transaction_id' => $this->transactionId,
-                    '$isolated' => 1
-                ],
-                'u' => [
-                    '$unset' => [
-                        'expire_at' => 1,
-                        'transaction_id' => 1
-                    ]
-                ],
+                'transaction_id' => $this->transactionId->toString(),
+                '$isolated' => 1,
+            ],
+            [
+                '$unset' => [
+                    'expire_at' => 1,
+                    'transaction_id' => 1
+                ]
+            ],
+            [
                 'multi' => true
             ]
         );
 
-        $updateBatch->execute();
+        $this->manager->executeBulkWrite(
+            $this->dbName . '.' . $this->getCollectionName($this->currentStreamName),
+            $bulk,
+            $this->writeConcern
+        );
 
         $this->transactionId = null;
         $this->currentStreamName = null;
@@ -329,19 +363,21 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
             return;
         }
 
-        $deleteBatch = $this->getDeleteBatch($this->currentStreamName);
-
-        $deleteBatch->add([
-            'q' => [
+        $bulk = new BulkWrite(['ordered' => false]);
+        $bulk->delete(
+            [
                 'transaction_id' => $this->transactionId
             ],
-            'limit' => 0
-        ]);
+            [
+                'limit' => 0
+            ]
+        );
 
-        $deleteBatch->execute();
-
-        $this->transactionId = null;
-        $this->currentStreamName = null;
+        $this->manager->executeBulkWrite(
+            $this->dbName . '.' . $this->getCollectionName($this->currentStreamName),
+            $bulk,
+            $this->writeConcern
+        );
     }
 
     /**
@@ -350,41 +386,24 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     private function createIndexes(StreamName $streamName)
     {
-        $collection = $this->getCollection($streamName);
-
-        $collection->createIndex(
+        $createIndexes = new CreateIndexes($this->dbName, $this->getCollectionName($streamName), [
             [
-                '_id' => 1,
-                'transaction_id' => 1
-            ],
-            [
+                'key' => [
+                    '_id' => 1,
+                    'transaction_id' => 1,
+                ],
                 'unique' => true,
-                'background' => true
-            ]
-        );
-
-        $collection->createIndex(
-            [
-                'expire_at' => 1
+                'background' => true,
             ],
             [
+                'key' => [
+                    'expire_at' => 1,
+                ],
                 'expireAfterSeconds' => $this->transactionTimeout,
             ]
-        );
-    }
+        ]);
 
-    /**
-     * Get mongo db stream collection
-     *
-     * @param StreamName $streamName
-     * @return \MongoCollection
-     */
-    private function getCollection(StreamName $streamName)
-    {
-        $collection = $this->mongoClient->selectCollection($this->dbName, $this->getCollectionName($streamName));
-        $collection->setReadPreference(\MongoClient::RP_PRIMARY);
-
-        return $collection;
+        $createIndexes->execute($this->manager->selectServer($this->readPreference));
     }
 
     /**
@@ -413,38 +432,5 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     {
         $streamName = str_replace('-', '_', $streamName->toString());
         return implode('', array_slice(explode('\\', $streamName), -1));
-    }
-
-    /**
-     * Get mongo db insert batch
-     *
-     * @param StreamName $streamName
-     * @return \MongoInsertBatch
-     */
-    private function getInsertBatch(StreamName $streamName)
-    {
-        return new \MongoInsertBatch($this->getCollection($streamName), $this->writeConcern);
-    }
-
-    /**
-     * Get mongo db update batch
-     *
-     * @param StreamName $streamName
-     * @return \MongoUpdateBatch
-     */
-    private function getUpdateBatch(StreamName $streamName)
-    {
-        return new \MongoUpdateBatch($this->getCollection($streamName), $this->writeConcern);
-    }
-
-    /**
-     * Get mongo db delete batch
-     *
-     * @param StreamName $streamName
-     * @return \MongoDeleteBatch
-     */
-    private function getDeleteBatch(StreamName $streamName)
-    {
-        return new \MongoDeleteBatch($this->getCollection($streamName), $this->writeConcern);
     }
 }
