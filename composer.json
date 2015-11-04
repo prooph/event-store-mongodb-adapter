@@ -1,7 +1,7 @@
 {
     "name": "prooph/event-store-mongodb-adapter",
     "description": "MongoDB Adapter for ProophEventStore",
-    "homepage": "https://github.com/prooph/event-store-mongodb-adapter",
+    "homepage": "http://getprooph.org/",
     "license": "BSD-3-Clause",
     "authors": [
         {
