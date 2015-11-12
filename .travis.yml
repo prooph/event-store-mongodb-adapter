@@ -14,7 +14,7 @@ env:
 before_install:
   - sudo apt-key adv --keyserver ${KEY_SERVER} --recv 7F0CEB10
   - echo "deb ${MONGO_REPO_URI} ${MONGO_REPO_TYPE}${SERVER_VERSION} multiverse" | sudo tee ${SOURCES_LOC}
-  - sudo apt-get update -qq
+  - sudo apt-get update
   
 install:
   - sudo apt-get install mongodb-enterprise
