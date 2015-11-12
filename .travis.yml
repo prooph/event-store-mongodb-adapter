@@ -13,7 +13,7 @@ env:
     
 before_install:
   - sudo apt-key adv --keyserver ${KEY_SERVER} --recv 7F0CEB10
-  - echo "deb ${MONGO_REPO_URI} ${MONGO_REPO_TYPE}${SERVER_VERSION} multiverse" | sudo tee ${SOURCES_LOC}
+  - echo "deb ${MONGO_REPO_URI} ${MONGO_REPO_TYPE}3.0 multiverse" | sudo tee ${SOURCES_LOC}
   - sudo apt-get update
   
 install:
@@ -22,7 +22,7 @@ install:
 before_script:
   - if ! nc -z localhost 27017; then sudo service mongodb-enterprise start; fi
   - mongod --version
-  - pecl install mongodb-3.0
+  - pecl install mongodb
   - php --ri mongodb
   - composer self-update
   - composer update
