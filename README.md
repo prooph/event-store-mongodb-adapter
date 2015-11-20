@@ -30,4 +30,4 @@ We recommend the AggregateStreamStrategy as the best strategy to use with this a
 
 This adapter uses die `$isolated` operator to achieve transaction safety for a single collection.
 Keep in mind, that `$isolated` does not work with sharded clusters. Therefore it's not safe to use this adapter
-in a shared cluster environment, as MongoDB can't guarantee transaction safety.
+in a sharded cluster environment, as MongoDB can't guarantee transaction safety.
