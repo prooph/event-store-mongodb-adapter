@@ -16,32 +16,37 @@ use Interop\Config\ProvidesDefaultOptions;
 use Interop\Config\RequiresConfig;
 use Interop\Config\RequiresMandatoryOptions;
 use Interop\Container\ContainerInterface;
+use MongoDB\Driver\Manager;
 use Prooph\Common\Messaging\FQCNMessageFactory;
 use Prooph\Common\Messaging\MessageConverter;
 use Prooph\Common\Messaging\MessageFactory;
 use Prooph\Common\Messaging\NoOpMessageConverter;
-use Prooph\EventStore\Adapter\MongoDb\MongoDbEventStoreAdapter;
+use Prooph\EventStore\Adapter\MongoDb\MongoDBEventStoreAdapter;
 
 /**
- * Class MongoDbEventStoreAdapterFactory
+ * Class MongoDBEventStoreAdapterFactory
  * @package Prooph\EventStore\Adapter\MongoDb\Container
  */
-final class MongoDbEventStoreAdapterFactory implements RequiresConfig, RequiresMandatoryOptions, ProvidesDefaultOptions
+final class MongoDBEventStoreAdapterFactory implements RequiresConfig, RequiresMandatoryOptions, ProvidesDefaultOptions
 {
     use ConfigurationTrait;
 
     /**
      * @param ContainerInterface $container
-     * @return MongoDbEventStoreAdapter
+     * @return MongoDBEventStoreAdapter
      */
     public function __invoke(ContainerInterface $container)
     {
         $config = $container->get('config');
         $config = $this->options($config)['adapter']['options'];
 
-        $mongoClient = isset($config['mongo_connection_alias'])
-            ? $container->get($config['mongo_connection_alias'])
-            : new \MongoClient();
+        $manager = isset($config['mongo_manager'])
+            ? $container->get($config['mongo_manager'])
+            : new Manager('mongodb://localhost:27017');
+
+        $writeConcern = isset($config['mongo_write_concern'])
+            ? $container->get($config['mongo_write_concern'])
+            : null;
 
         $messageFactory = $container->has(MessageFactory::class)
             ? $container->get(MessageFactory::class)
@@ -51,12 +56,12 @@ final class MongoDbEventStoreAdapterFactory implements RequiresConfig, RequiresM
             ? $container->get(MessageConverter::class)
             : new NoOpMessageConverter();
 
-        return new MongoDbEventStoreAdapter(
+        return new MongoDBEventStoreAdapter(
             $messageFactory,
             $messageConverter,
-            $mongoClient,
+            $manager,
             $config['db_name'],
-            $config['write_concern'],
+            $writeConcern,
             $config['transaction_timeout'],
             $config['stream_collection_map']
         );
@@ -99,10 +104,6 @@ final class MongoDbEventStoreAdapterFactory implements RequiresConfig, RequiresM
                 'options' => [
                     'stream_collection_map' => [],
                     'transaction_timeout' => null,
-                    'write_concern' => [
-                        'w' => 1,
-                        'j' => true
-                    ],
                 ]
             ]
         ];

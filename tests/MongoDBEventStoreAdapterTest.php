@@ -11,51 +11,64 @@
 
 namespace ProophTest\EventStore\Adapter\MongoDb;
 
+use MongoDB\Driver\Command;
+use MongoDB\Driver\Manager;
+use MongoDB\Driver\Query;
 use PHPUnit_Framework_TestCase as TestCase;
 use Prooph\Common\Messaging\FQCNMessageFactory;
 use Prooph\Common\Messaging\NoOpMessageConverter;
-use Prooph\EventStore\Adapter\MongoDb\MongoDbEventStoreAdapter;
+use Prooph\EventStore\Adapter\MongoDb\MongoDBEventStoreAdapter;
 use Prooph\EventStore\Stream\Stream;
 use Prooph\EventStore\Stream\StreamName;
 use ProophTest\EventStore\Mock\UserCreated;
 use ProophTest\EventStore\Mock\UsernameChanged;
 
 /**
- * Class MongoDbEventStoreAdapterTest
+ * Class MongoDBEventStoreAdapterTest
  * @package ProophTest\EventStore\Adapter\MongoDb
  */
-final class MongoDbEventStoreAdapterTest extends TestCase
+final class MongoDBEventStoreAdapterTest extends TestCase
 {
     /**
-     * @var MongoDbEventStoreAdapter
+     * @var MongoDBEventStoreAdapter
      */
     private $adapter;
 
     /**
-     * @var \MongoClient
+     * @var Manager
      */
-    private $client;
+    private $manager;
+
+    /**
+     * @var
+     */
+    private $dbName;
 
     protected function setUp()
     {
-        $this->client = new \MongoClient();
-        $dbName = 'mongo_adapter_test';
+        $this->manager = new Manager('mongodb://localhost:27017');
+        $this->dbName = 'mongo_adapter_test';
 
-        $this->client->selectDB($dbName)->drop();
+        $this->manager->executeCommand($this->dbName, new Command(['dropDatabase' => 1]));
 
-        $this->adapter = new MongoDbEventStoreAdapter(
-            new FQCNMessageFactory(),
-            new NoOpMessageConverter(),
-            $this->client,
-            $dbName
-        );
+        $this->createAdapter();
     }
 
     protected function tearDown()
     {
-        if (null !== $this->client) {
-            $this->client->selectDB('mongo_adapter_test')->drop();
+        if (null !== $this->manager) {
+            $this->manager->executeCommand($this->dbName, new Command(['dropDatabase' => 1]));
         }
+    }
+
+    protected function createAdapter()
+    {
+        $this->adapter = new MongoDBEventStoreAdapter(
+            new FQCNMessageFactory(),
+            new NoOpMessageConverter(),
+            $this->manager,
+            $this->dbName
+        );
     }
 
     /**
@@ -115,7 +128,7 @@ final class MongoDbEventStoreAdapterTest extends TestCase
 
         $count = 0;
         $lastEvent = null;
-        foreach ($stream->streamEvents()  as $event) {
+        foreach ($stream->streamEvents() as $event) {
             $count++;
             $lastEvent = $event;
         }
@@ -196,6 +209,10 @@ final class MongoDbEventStoreAdapterTest extends TestCase
 
         sleep(1);
 
+        // hack: see: https://github.com/mongodb/mongo-php-driver/issues/132
+        $this->manager = new Manager('mongodb://localhost:27017');
+        $this->createAdapter();
+
         $since = new \DateTime('now', new \DateTimeZone('UTC'));
 
         $streamEvent = UsernameChanged::with(
@@ -250,6 +267,10 @@ final class MongoDbEventStoreAdapterTest extends TestCase
         $this->adapter->appendTo(new StreamName('Prooph\Model\User'), new \ArrayIterator([$streamEvent]));
 
         sleep(1);
+
+        // hack: see: https://github.com/mongodb/mongo-php-driver/issues/132
+        $this->manager = new Manager('mongodb://localhost:27017');
+        $this->createAdapter();
 
         $secondUserEvent = UserCreated::with(
             ['name' => 'Jane Doe', 'email' => 'jane@acme.com'],
@@ -306,13 +327,13 @@ final class MongoDbEventStoreAdapterTest extends TestCase
 
         $this->assertTrue($stream->streamEvents()->valid());
         $event = $stream->streamEvents()->current();
-        $this->assertNotEmpty($stream->streamEvents()->key());
+        $this->assertEquals(0, $stream->streamEvents()->key());
         $this->assertEquals('John Doe', $event->payload()['name']);
 
         $stream->streamEvents()->next();
         $this->assertTrue($stream->streamEvents()->valid());
         $event = $stream->streamEvents()->current();
-        $this->assertNotEmpty($stream->streamEvents()->key());
+        $this->assertEquals(1, $stream->streamEvents()->key());
         $this->assertEquals('Jane Doe', $event->payload()['name']);
 
         $stream->streamEvents()->next();
@@ -326,7 +347,7 @@ final class MongoDbEventStoreAdapterTest extends TestCase
      */
     public function it_throws_exception_when_no_db_name_set()
     {
-        new MongoDbEventStoreAdapter(new FQCNMessageFactory(), new NoOpMessageConverter(), new \MongoClient(), null);
+        new MongoDBEventStoreAdapter(new FQCNMessageFactory(), new NoOpMessageConverter(), $this->manager, null);
     }
 
     /**
@@ -345,10 +366,10 @@ final class MongoDbEventStoreAdapterTest extends TestCase
      */
     public function it_throws_exception_when_invalid_transaction_timeout_given()
     {
-        new MongoDbEventStoreAdapter(
+        new MongoDBEventStoreAdapter(
             new FQCNMessageFactory(),
             new NoOpMessageConverter(),
-            new \MongoClient(),
+            $this->manager,
             'mongo_adapter_test',
             null,
             'invalid'
@@ -360,10 +381,10 @@ final class MongoDbEventStoreAdapterTest extends TestCase
      */
     public function it_accepts_custom_transaction_timeout()
     {
-        new MongoDbEventStoreAdapter(
+        new MongoDBEventStoreAdapter(
             new FQCNMessageFactory(),
             new NoOpMessageConverter(),
-            new \MongoClient(),
+            $this->manager,
             'mongo_adapter_test',
             null,
             10
@@ -390,34 +411,23 @@ final class MongoDbEventStoreAdapterTest extends TestCase
 
     /**
      * @test
+     * @group my
      */
     public function it_rolls_back_transaction_after_timeout()
     {
-        $this->client = new \MongoClient();
-        $dbName = 'mongo_adapter_test';
-
-        $this->client->selectDB($dbName)->drop();
-
-        $this->adapter = new MongoDbEventStoreAdapter(
-            new FQCNMessageFactory(),
-            new NoOpMessageConverter(),
-            $this->client,
-            $dbName,
-            null,
-            3
-        );
-
         $testStream = $this->getTestStream();
 
         $this->adapter->beginTransaction();
 
         $this->adapter->create($testStream);
 
-        sleep(3);
+        sleep(120);
 
-        $result = $this->adapter->loadEvents(new StreamName('Prooph\Model\User'), ['tag' => 'person']);
+        // hack: see: https://github.com/mongodb/mongo-php-driver/issues/132
+        $this->manager = new Manager('mongodb://localhost:27017');
+        $cursor = $this->manager->executeQuery($this->dbName . '.user_stream', new \MongoDB\Driver\Query([]));
 
-        $this->assertFalse($result->valid());
+        $this->assertEquals(0, count($cursor->toArray()));
     }
 
     /**
@@ -436,16 +446,11 @@ final class MongoDbEventStoreAdapterTest extends TestCase
      */
     public function it_uses_custom_stream_collection_map()
     {
-        $this->client = new \MongoClient();
-        $dbName = 'mongo_adapter_test';
-
-        $this->client->selectDB($dbName)->drop();
-
-        $this->adapter = new MongoDbEventStoreAdapter(
+        $this->adapter = new MongoDBEventStoreAdapter(
             new FQCNMessageFactory(),
             new NoOpMessageConverter(),
-            $this->client,
-            $dbName,
+            $this->manager,
+            $this->dbName,
             null,
             3,
             [
@@ -461,7 +466,7 @@ final class MongoDbEventStoreAdapterTest extends TestCase
 
         $this->adapter->commit();
 
-        $collectionContent = $this->client->selectCollection($dbName, 'test_collection_name')->find([]);
+        $collectionContent = $this->manager->executeQuery($this->dbName . '.test_collection_name', new Query([]));
 
         $this->assertEquals(1, count($collectionContent));
     }
@@ -473,16 +478,11 @@ final class MongoDbEventStoreAdapterTest extends TestCase
      */
     public function it_throws_exception_when_trying_to_write_to_different_streams_in_one_transaction()
     {
-        $this->client = new \MongoClient();
-        $dbName = 'mongo_adapter_test';
-
-        $this->client->selectDB($dbName)->drop();
-
-        $this->adapter = new MongoDbEventStoreAdapter(
+        $this->adapter = new MongoDBEventStoreAdapter(
             new FQCNMessageFactory(),
             new NoOpMessageConverter(),
-            $this->client,
-            $dbName,
+            $this->manager,
+            $this->dbName,
             null,
             3,
             [

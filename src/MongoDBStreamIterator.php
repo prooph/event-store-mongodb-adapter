@@ -12,17 +12,41 @@
 namespace Prooph\EventStore\Adapter\MongoDb;
 
 use Iterator;
+use IteratorIterator;
+use MongoDB\Driver\Manager;
+use MongoDB\Driver\Query;
+use MongoDB\Driver\ReadPreference;
 use Prooph\Common\Messaging\Message;
 use Prooph\Common\Messaging\MessageFactory;
 
 /**
- * Class MongoDbStreamIterator
+ * Class MongoDBStreamIterator
  * @package Prooph\EventStore\Adapter\MongoDb
  */
-final class MongoDbStreamIterator implements Iterator
+final class MongoDBStreamIterator implements Iterator
 {
     /**
-     * @var Iterator
+     * @var Manager
+     */
+    private $manager;
+
+    /**
+     * @var string
+     */
+    private $namespace;
+
+    /**
+     * @var Query
+     */
+    private $query;
+
+    /**
+     * @var ReadPreference
+     */
+    private $readPreference;
+
+    /**
+     * @var Generator
      */
     private $innerIterator;
 
@@ -50,17 +74,29 @@ final class MongoDbStreamIterator implements Iterator
     ];
 
     /**
-     * @param Iterator $iterator
+     * @param Manager $manager
+     * @param string $namespace
+     * @param Query $query
+     * @param ReadPreference $readPreference
      * @param MessageFactory $messageFactory
      * @param array $metadata
      */
-    public function __construct(Iterator $iterator, MessageFactory $messageFactory, array $metadata)
-    {
-        $this->innerIterator = $iterator;
+    public function __construct(
+        Manager $manager,
+        $namespace,
+        Query $query,
+        ReadPreference $readPreference,
+        MessageFactory $messageFactory,
+        array $metadata
+    ) {
+        $this->manager = $manager;
+        $this->namespace = $namespace;
+        $this->query = $query;
+        $this->readPreference = $readPreference;
         $this->messageFactory = $messageFactory;
         $this->metadata = $metadata;
 
-        $iterator->rewind();
+        $this->rewind();
     }
 
     /**
@@ -86,32 +122,23 @@ final class MongoDbStreamIterator implements Iterator
 
         return $this->messageFactory->createMessageFromArray($current['event_name'], [
             'uuid' => $current['_id'],
-            'version' => (int) $current['version'],
+            'version' => $current['version'],
             'created_at' => $createdAt,
             'payload' => $current['payload'],
             'metadata' => $metadata
         ]);
     }
 
-    /**
-     * Next
-     */
     public function next()
     {
-        $this->innerIterator->next();
+        return $this->innerIterator->next();
     }
 
-    /**
-     * @return mixed
-     */
     public function key()
     {
         return $this->innerIterator->key();
     }
 
-    /**
-     * @return bool
-     */
     public function valid()
     {
         return $this->innerIterator->valid();
@@ -122,6 +149,9 @@ final class MongoDbStreamIterator implements Iterator
      */
     public function rewind()
     {
+        $cursor = $this->manager->executeQuery($this->namespace, $this->query, $this->readPreference);
+        $cursor->setTypeMap(['document' => 'array', 'root' => 'array']);
+        $this->innerIterator = new IteratorIterator($cursor);
         $this->innerIterator->rewind();
     }
 }

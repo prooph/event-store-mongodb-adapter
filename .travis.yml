@@ -3,17 +3,31 @@ language: php
 php:
   - 5.5
   - 5.6
-
+  
+env:
+  global:
+    - KEY_SERVER="hkp://keyserver.ubuntu.com:80"
+    - MONGO_REPO_URI="http://repo.mongodb.com/apt/ubuntu"
+    - MONGO_REPO_TYPE="precise/mongodb-enterprise/"
+    - SOURCES_LOC="/etc/apt/sources.list.d/mongodb.list"
+    
 before_install:
-  - wget http://fastdl.mongodb.org/linux/mongodb-linux-x86_64-3.0.5.tgz -O /tmp/mongodb.tgz
-  - tar -xvf /tmp/mongodb.tgz
-  - mkdir /tmp/data
-  - ${PWD}/mongodb-linux-x86_64-3.0.5/bin/mongod --dbpath /tmp/data --bind_ip 127.0.0.1 --noauth &> /dev/null &
+  - sudo apt-key adv --keyserver ${KEY_SERVER} --recv 7F0CEB10
+  - echo "deb ${MONGO_REPO_URI} ${MONGO_REPO_TYPE}3.0 multiverse" | sudo tee ${SOURCES_LOC}
+  - sudo apt-get update
+  
+install:
+  - sudo apt-get install mongodb-enterprise
 
 before_script:
-  - echo "extension = mongo.so" >> ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini
+  - if ! nc -z localhost 27017; then sudo service mongodb-enterprise start; fi
+  - mongod --version
+  - pecl install mongodb
+  - php --ri mongodb
   - composer self-update
-  - composer install --prefer-source
+  - composer update
+  - ulimit -c
+  - ulimit -c unlimited -S
 
 script:
   - phpunit --coverage-text --coverage-clover ./build/logs/clover.xml
