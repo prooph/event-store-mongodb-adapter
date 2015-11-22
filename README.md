@@ -21,12 +21,13 @@ The default write concern for this adapater is acknowledged and journaled (['w' 
 
 It's possible to change both values by injecting them into the constructor or by using the factory.
 
-Sharding
---------
+Considerations
+--------------
 
 This adapter does not use the MongoDB ObjectId for its primary key, instead a UUID (string) is used.
 
-When using MongoDB's sharding feature, simply set the "_id" as shard key.
+We recommend the AggregateStreamStrategy as the best strategy to use with this adapter.
 
-For more information about sharding in MongoDB check the MongoDB manual.
- 
+This adapter uses die `$isolated` operator to achieve transaction safety for a single collection.
+Keep in mind, that `$isolated` does not work with sharded clusters. Therefore it's not safe to use this adapter
+in a sharded cluster environment, as MongoDB can't guarantee transaction safety.

@@ -11,20 +11,25 @@
 
 namespace Prooph\EventStore\Adapter\MongoDb\Container;
 
+use Interop\Config\ConfigurationTrait;
+use Interop\Config\ProvidesDefaultOptions;
+use Interop\Config\RequiresConfig;
+use Interop\Config\RequiresMandatoryOptions;
 use Interop\Container\ContainerInterface;
 use Prooph\Common\Messaging\FQCNMessageFactory;
 use Prooph\Common\Messaging\MessageConverter;
 use Prooph\Common\Messaging\MessageFactory;
 use Prooph\Common\Messaging\NoOpMessageConverter;
 use Prooph\EventStore\Adapter\MongoDb\MongoDbEventStoreAdapter;
-use Prooph\EventStore\Exception\ConfigurationException;
 
 /**
  * Class MongoDbEventStoreAdapterFactory
  * @package Prooph\EventStore\Adapter\MongoDb\Container
  */
-final class MongoDbEventStoreAdapterFactory
+final class MongoDbEventStoreAdapterFactory implements RequiresConfig, RequiresMandatoryOptions, ProvidesDefaultOptions
 {
+    use ConfigurationTrait;
+
     /**
      * @param ContainerInterface $container
      * @return MongoDbEventStoreAdapter
@@ -32,29 +37,11 @@ final class MongoDbEventStoreAdapterFactory
     public function __invoke(ContainerInterface $container)
     {
         $config = $container->get('config');
+        $config = $this->options($config)['adapter']['options'];
 
-        if (!isset($config['prooph']['event_store']['adapter'])) {
-            throw ConfigurationException::configurationError(
-                'Missing adapter configuration in prooph event_store configuration'
-            );
-        }
-
-        $adapterOptions = isset($config['prooph']['event_store']['adapter']['options'])
-            ? $config['prooph']['event_store']['adapter']['options']
-            : [];
-
-        $mongoClient = isset($adapterOptions['mongo_connection_alias'])
-            ? $container->get($adapterOptions['mongo_connection_alias'])
+        $mongoClient = isset($config['mongo_connection_alias'])
+            ? $container->get($config['mongo_connection_alias'])
             : new \MongoClient();
-
-        if (!isset($adapterOptions['db_name'])) {
-            throw ConfigurationException::configurationError(
-                'Mongo database name is missing
-                '
-            );
-        }
-
-        $dbName = $adapterOptions['db_name'];
 
         $messageFactory = $container->has(MessageFactory::class)
             ? $container->get(MessageFactory::class)
@@ -64,21 +51,60 @@ final class MongoDbEventStoreAdapterFactory
             ? $container->get(MessageConverter::class)
             : new NoOpMessageConverter();
 
-
-        $writeConcern = isset($adapterOptions['write_concern']) ? $adapterOptions['write_concern'] : [];
-
-        $streamCollectionName = isset($adapterOptions['collection_name']) ? $adapterOptions['collection_name'] : null;
-
-        $timeout = isset($adapterOptions['transaction_timeout']) ? $adapterOptions['transaction_timeout'] : null;
-
         return new MongoDbEventStoreAdapter(
             $messageFactory,
             $messageConverter,
             $mongoClient,
-            $dbName,
-            $writeConcern,
-            $streamCollectionName,
-            $timeout
+            $config['db_name'],
+            $config['write_concern'],
+            $config['transaction_timeout'],
+            $config['stream_collection_map']
         );
+    }
+
+    /**
+     * @inheritdoc
+     */
+    public function vendorName()
+    {
+        return 'prooph';
+    }
+    /**
+     * @inheritdoc
+     */
+    public function packageName()
+    {
+        return 'event_store';
+    }
+    /**
+     * @inheritdoc
+     */
+    public function mandatoryOptions()
+    {
+        return [
+            'adapter' => [
+                'options' => [
+                    'db_name'
+                ]
+            ]
+        ];
+    }
+    /**
+     * @inheritdoc
+     */
+    public function defaultOptions()
+    {
+        return [
+            'adapter' => [
+                'options' => [
+                    'stream_collection_map' => [],
+                    'transaction_timeout' => null,
+                    'write_concern' => [
+                        'w' => 1,
+                        'j' => true
+                    ],
+                ]
+            ]
+        ];
     }
 }

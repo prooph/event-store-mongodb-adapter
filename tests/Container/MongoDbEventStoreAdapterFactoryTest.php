@@ -9,7 +9,7 @@
  * Date: 08/20/15 - 17:51
  */
 
-namespace Prooph\EventStore\Adapter\MongDbTest\Service;
+namespace ProophTest\EventStore\Adapter\MongoDb\Service;
 
 use Interop\Container\ContainerInterface;
 use PHPUnit_Framework_TestCase as TestCase;
@@ -18,7 +18,7 @@ use Prooph\EventStore\Adapter\MongoDb\Container\MongoDbEventStoreAdapterFactory;
 
 /**
  * Class MongoDbEventStoreAdapterFactoryTest
- * @package Prooph\EventStore\Adapter\MongDbTest\Container
+ * @package ProophTest\EventStore\Adapter\MongoDb\Service
  */
 class MongoDbEventStoreAdapterFactoryTest extends TestCase
 {
@@ -29,13 +29,11 @@ class MongoDbEventStoreAdapterFactoryTest extends TestCase
     {
         $client = new \MongoClient();
         $dbName = 'mongo_adapter_test';
-        $collectionName = 'stream_collection';
 
         $config = [];
         $config['prooph']['event_store']['adapter']['options'] = [
             'mongo_connection_alias' => 'mongo_connection',
             'db_name' => $dbName,
-            'collection_name' => $collectionName
         ];
 
         $mock = $this->getMockForAbstractClass(ContainerInterface::class);
@@ -46,40 +44,5 @@ class MongoDbEventStoreAdapterFactoryTest extends TestCase
         $adapter = $factory($mock);
 
         $this->assertInstanceOf(MongoDbEventStoreAdapter::class, $adapter);
-    }
-
-    /**
-     * @test
-     * @expectedException Prooph\EventStore\Exception\ConfigurationException
-     * @expectedExceptionMessage Mongo database name is missing
-     */
-    public function it_throws_exception_if_db_name_is_missing()
-    {
-        $config = [];
-        $config['prooph']['event_store']['adapter']['options'] = [
-        ];
-
-        $mock = $this->getMockForAbstractClass(ContainerInterface::class);
-        $mock->expects($this->at(0))->method('get')->with('config')->will($this->returnValue($config));
-
-        $factory = new MongoDbEventStoreAdapterFactory();
-        $factory($mock);
-    }
-
-    /**
-     * @test
-     * @expectedException Prooph\EventStore\Exception\ConfigurationException
-     * @expectedExceptionMessage Missing adapter configuration in prooph event_store configuration
-     */
-    public function it_throws_exception_if_adapter_config_missing()
-    {
-        $config = [];
-        $config['prooph']['event_store'] = [];
-
-        $mock = $this->getMockForAbstractClass(ContainerInterface::class);
-        $mock->expects($this->at(0))->method('get')->with('config')->will($this->returnValue($config));
-
-        $factory = new MongoDbEventStoreAdapterFactory();
-        $factory($mock);
     }
 }
