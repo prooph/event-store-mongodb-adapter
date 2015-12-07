@@ -469,7 +469,7 @@ final class MongoDbEventStoreAdapterTest extends TestCase
     /**
      * @test
      * @expectedException RuntimeException
-     * @expectedExceptionMessage Cannot write to different stream streams in one transaction
+     * @expectedExceptionMessage Cannot write to different streams in one transaction
      */
     public function it_throws_exception_when_trying_to_write_to_different_streams_in_one_transaction()
     {
