@@ -159,7 +159,7 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     public function appendTo(StreamName $streamName, Iterator $streamEvents)
     {
         if ($this->currentStreamName !== null && $this->currentStreamName->toString() !== $streamName->toString()) {
-            throw new \RuntimeException('Cannot write to different stream streams in one transaction');
+            throw new \RuntimeException('Cannot write to different streams in one transaction');
         }
 
         $this->currentStreamName = $streamName;
