@@ -358,6 +358,7 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
             ],
             [
                 'unique' => true,
+                'sparse' => true,
             ]
         );
 
@@ -376,7 +377,7 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
                 'version' => 1,
             ],
             [
-                'unique' => true
+                'unique' => true,
             ]
         );
     }
