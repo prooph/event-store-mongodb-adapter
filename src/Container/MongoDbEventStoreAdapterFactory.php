@@ -65,17 +65,11 @@ final class MongoDbEventStoreAdapterFactory implements RequiresConfig, RequiresM
     /**
      * @inheritdoc
      */
-    public function vendorName()
+    public function dimensions()
     {
-        return 'prooph';
+        return ['prooph', 'event_store'];
     }
-    /**
-     * @inheritdoc
-     */
-    public function packageName()
-    {
-        return 'event_store';
-    }
+
     /**
      * @inheritdoc
      */
