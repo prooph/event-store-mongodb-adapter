@@ -354,25 +354,6 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
 
         $collection->createIndex(
             [
-                'transaction_id' => 1
-            ],
-            [
-                'unique' => true,
-                'sparse' => true,
-            ]
-        );
-
-        $collection->createIndex(
-            [
-                'expire_at' => 1
-            ],
-            [
-                'expireAfterSeconds' => $this->transactionTimeout,
-            ]
-        );
-
-        $collection->createIndex(
-            [
                 'aggregate_id' => 1,
                 'version' => 1,
             ],
