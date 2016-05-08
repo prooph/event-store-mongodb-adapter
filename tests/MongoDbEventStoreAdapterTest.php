@@ -253,7 +253,7 @@ final class MongoDbEventStoreAdapterTest extends TestCase
 
         $secondUserEvent = UserCreated::with(
             ['name' => 'Jane Doe', 'email' => 'jane@acme.com'],
-            1
+            3
         );
 
         $secondUserEvent = $secondUserEvent->withAddedMetadata('tag', 'person');
@@ -277,7 +277,7 @@ final class MongoDbEventStoreAdapterTest extends TestCase
         $this->assertEquals($expectedPayloads, $replayedPayloads);
     }
 
-        /**
+    /**
      * @test
      */
     public function it_loads_events_from_min_version_on()
@@ -293,7 +293,7 @@ final class MongoDbEventStoreAdapterTest extends TestCase
 
         $streamEvent2 = UsernameChanged::with(
             ['name' => 'Jane Doe'],
-            2
+            3
         );
 
         $streamEvent2 = $streamEvent2->withAddedMetadata('tag', 'person');
@@ -317,6 +317,24 @@ final class MongoDbEventStoreAdapterTest extends TestCase
 
         $stream->streamEvents()->next();
         $this->assertFalse($stream->streamEvents()->valid());
+    }
+
+    /**
+     * @test
+     * @expectedException \MongoWriteConcernException
+     */
+    public function it_fails_to_write_with_duplicate_aggregate_id_and_version()
+    {
+        $this->adapter->create($this->getTestStream());
+
+        $streamEvent = UsernameChanged::with(
+            ['name' => 'John Doe'],
+            1
+        );
+
+        $streamEvent = $streamEvent->withAddedMetadata('tag', 'person');
+
+        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), new \ArrayIterator([$streamEvent]));
     }
 
     /**
@@ -469,7 +487,7 @@ final class MongoDbEventStoreAdapterTest extends TestCase
     /**
      * @test
      * @expectedException RuntimeException
-     * @expectedExceptionMessage Cannot write to different stream streams in one transaction
+     * @expectedExceptionMessage Cannot write to different streams in one transaction
      */
     public function it_throws_exception_when_trying_to_write_to_different_streams_in_one_transaction()
     {
