@@ -321,7 +321,7 @@ final class MongoDbEventStoreAdapterTest extends TestCase
 
     /**
      * @test
-     * @expectedException \MongoWriteConcernException
+     * @expectedException \Prooph\EventStore\Exception\ConcurrencyException
      */
     public function it_fails_to_write_with_duplicate_aggregate_id_and_version()
     {
