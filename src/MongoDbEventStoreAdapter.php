@@ -19,6 +19,7 @@ use Prooph\Common\Messaging\MessageConverter;
 use Prooph\Common\Messaging\MessageFactory;
 use Prooph\EventStore\Adapter\Adapter;
 use Prooph\EventStore\Adapter\Feature\CanHandleTransaction;
+use Prooph\EventStore\Exception\ConcurrencyException;
 use Prooph\EventStore\Exception\RuntimeException;
 use Prooph\EventStore\Exception\StreamNotFoundException;
 use Prooph\EventStore\Stream\Stream;
@@ -171,7 +172,11 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
             $insertBatch->add($data);
         }
 
-        $insertBatch->execute();
+        try {
+            $insertBatch->execute();
+        } catch (\MongoWriteConcernException $e) {
+            throw new ConcurrencyException('', 0, $e);
+        }
     }
 
     /**
