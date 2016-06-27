@@ -175,7 +175,7 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
         try {
             $insertBatch->execute();
         } catch (\MongoWriteConcernException $e) {
-            throw new ConcurrencyException();
+            throw new ConcurrencyException('', 0, $e);
         }
     }
 
