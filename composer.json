@@ -18,8 +18,7 @@
         "php": ">=5.5",
         "prooph/event-store": "^6.3",
         "beberlei/assert": "~2.4",
-        "prooph/common": "^3.7",
-        "ext-mongo": ">=1.5"
+        "prooph/common": "^3.7"
     },
     "require-dev": {
         "container-interop/container-interop": "^1.1",
@@ -31,7 +30,10 @@
     },
     "suggest": {
         "container-interop/container-interop": "For usage of provided factories",
-        "sandrokeil/interop-config": "For usage of provided factories"
+        "sandrokeil/interop-config": "For usage of provided factories",
+        "alcaeus/mongo-php-adapter": "Allows usage of PHP 7",
+        "ext-mongo": ">=1.6 for usage with mongo extension and PHP 5.x",
+        "ext-mongodb": ">=1.1 for usage with mongodb extension and PHP 7"
     },
     "conflict": {
         "sandrokeil/interop-config": "<1.0"
