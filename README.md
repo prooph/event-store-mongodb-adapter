@@ -17,7 +17,7 @@ Write concern
 
 This adapter uses a transaction timeout of 50 secs by default.
 
-The default write concern for this adapater is acknowledged and journaled (['w' => 1, 'j' => true]).
+The default write concern for this adapater is acknowledged (['w' => 1]).
 
 It's possible to change both values by injecting them into the constructor or by using the factory.
 
