@@ -173,10 +173,9 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
 
         try {
             $insertBatch->execute();
-        } catch (\MongoDuplicateKeyException $e) {
-            throw new ConcurrencyException('At least one event with same version exists already', 0, $e);
         } catch (\MongoWriteConcernException $e) {
-            if ($e->getCode() === 911) {
+            $code = $e->getDocument()['writeErrors'][0]['code'];
+            if (in_array($code, [11000, 11001, 12582])) {
                 throw new ConcurrencyException('At least one event with same version exists already', 0, $e);
             }
         }
