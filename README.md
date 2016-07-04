@@ -11,6 +11,7 @@ Requirements
 
 - MongoDB >= 2.6.0
 - PHP Mongo Extension >= 1.5.0
+- alcaeus/mongo-php-adapter >= 1.0.5 for usage with PHP 7
 
 Write concern
 -------------

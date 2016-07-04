@@ -3,6 +3,7 @@ language: php
 php:
   - 5.5
   - 5.6
+  - 7
 
 env:
   matrix:
@@ -16,9 +17,11 @@ before_install:
   - ${PWD}/mongodb-linux-x86_64-3.0.5/bin/mongod --dbpath /tmp/data --bind_ip 127.0.0.1 --noauth &> /dev/null &
 
 before_script:
-  - echo "extension = mongo.so" >> ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini
+  - if [ $TRAVIS_PHP_VERSION != "7" ]; then echo "extension = mongo.so" >> ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini; fi;
+  - if [ $TRAVIS_PHP_VERSION == "7" ]; then echo "extension = mongodb.so" >> ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini; fi;
   - composer self-update
   - composer update --prefer-dist $DEPENDENCIES
+  - if [ $TRAVIS_PHP_VERSION == "7" ]; then composer require alcaeus/mongo-php-adapter ^1.0; fi;
 
 script:
   - phpunit --coverage-text --coverage-clover ./build/logs/clover.xml
