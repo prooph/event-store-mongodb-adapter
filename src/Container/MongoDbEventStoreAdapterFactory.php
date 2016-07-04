@@ -95,7 +95,6 @@ final class MongoDbEventStoreAdapterFactory implements RequiresConfig, RequiresM
                     'transaction_timeout' => null,
                     'write_concern' => [
                         'w' => 1,
-                        'j' => true
                     ],
                 ]
             ]
