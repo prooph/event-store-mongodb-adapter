@@ -35,6 +35,11 @@
         "ext-mongo": ">=1.6 for usage with mongo extension and PHP 5.x",
         "ext-mongodb": ">=1.1 for usage with mongodb extension and PHP 7"
     },
+    "config": {
+        "preferred-install": {
+            "prooph/*": "source"
+        }
+    },
     "conflict": {
         "sandrokeil/interop-config": "<1.0"
     },
