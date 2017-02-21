@@ -375,6 +375,13 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
                 'version' => 1,
             ]
         );
+
+        $collection->createIndex(
+            [
+                'transaction_id' => 1,
+                'expire_at' => 1,
+            ]
+        );
     }
 
     /**

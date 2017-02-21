@@ -20,16 +20,16 @@ before_script:
   - if [ $TRAVIS_PHP_VERSION != "7" ]; then echo "extension = mongo.so" >> ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini; fi;
   - if [ $TRAVIS_PHP_VERSION == "7" ]; then echo "extension = mongodb.so" >> ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini; fi;
   - composer self-update
-  - composer update --prefer-dist $DEPENDENCIES
+  - composer update $DEPENDENCIES
   - if [ $TRAVIS_PHP_VERSION == "7" ]; then composer require alcaeus/mongo-php-adapter ^1.0; fi;
 
 script:
-  - phpunit --coverage-text --coverage-clover ./build/logs/clover.xml
+  - ./vendor/bin/phpunit --coverage-text --coverage-clover ./build/logs/clover.xml
   - ./vendor/bin/php-cs-fixer fix -v --diff --dry-run
 
 after_success:
   - php vendor/bin/coveralls -v
-  
+
 notifications:
   webhooks:
     urls:
