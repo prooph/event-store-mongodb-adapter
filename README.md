@@ -6,6 +6,11 @@
 
 MongoDB Adapter for [ProophEventStore](https://github.com/prooph/event-store)
 
+#CAUTION: The mongoDB adapter is **NOT** compatible With prooph/event-store v7. MongoDB has limited ACID support which is not compatible with the new features of prooph/event-store. MongoDB is a great choice for a read model database, but unfortunately it cannot be used as an event-store that requires transactions across documents (events). 
+Codeliner has published a [Gist](https://gist.github.com/codeliner/14a8d98d53efafdd35e851d76e89cc94) that shows a custom implementation of a possible mongoDB event store supporting a subset of the v7 features in a very limited way. If you want to try to bring mongoDB back, please get in touch with us and we can discuss it! 
+
+**Support for the adapter will end at 31 December 2017.**
+
 Requirements
 ------------
 
