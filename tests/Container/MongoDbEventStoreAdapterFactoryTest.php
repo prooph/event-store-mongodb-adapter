@@ -1,20 +1,21 @@
 <?php
 /*
  * This file is part of the prooph/event-store-mongodb-adapter.
- * (c) 2014 - 2015 prooph software GmbH <contact@prooph.de>
+ * (c) 2014-2018 prooph software GmbH <contact@prooph.de>
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
- *
- * Date: 08/20/15 - 17:51
  */
+
+declare(strict_types=1);
 
 namespace ProophTest\EventStore\Adapter\MongoDb\Service;
 
-use Interop\Container\ContainerInterface;
-use PHPUnit_Framework_TestCase as TestCase;
-use Prooph\EventStore\Adapter\MongoDb\MongoDbEventStoreAdapter;
+use MongoDB\Client;
+use PHPUnit\Framework\TestCase;
 use Prooph\EventStore\Adapter\MongoDb\Container\MongoDbEventStoreAdapterFactory;
+use Prooph\EventStore\Adapter\MongoDb\MongoDbEventStoreAdapter;
+use Psr\Container\ContainerInterface;
 
 /**
  * Class MongoDbEventStoreAdapterFactoryTest
@@ -27,7 +28,7 @@ class MongoDbEventStoreAdapterFactoryTest extends TestCase
      */
     public function it_creates_adapter()
     {
-        $client = new \MongoClient();
+        $client = new Client();
         $dbName = 'mongo_adapter_test';
 
         $config = [];

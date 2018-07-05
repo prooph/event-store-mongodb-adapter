@@ -1,19 +1,21 @@
 <?php
 /*
  * This file is part of the prooph/event-store-mongodb-adapter.
- * (c) 2014 - 2015 prooph software GmbH <contact@prooph.de>
+ * (c) 2014-2018 prooph software GmbH <contact@prooph.de>
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
- *
- * Date: 08/08/15 - 20:32
  */
+
+declare(strict_types=1);
 
 namespace ProophTest\EventStore\Adapter\MongoDb;
 
-use PHPUnit_Framework_TestCase as TestCase;
+use MongoDB\Client;
+use PHPUnit\Framework\TestCase;
 use Prooph\Common\Messaging\FQCNMessageFactory;
 use Prooph\Common\Messaging\NoOpMessageConverter;
+use Prooph\EventStore\Adapter\MongoDb\Exception\RuntimeAdapterException;
 use Prooph\EventStore\Adapter\MongoDb\MongoDbEventStoreAdapter;
 use Prooph\EventStore\Stream\Stream;
 use Prooph\EventStore\Stream\StreamName;
@@ -24,50 +26,39 @@ use ProophTest\EventStore\Mock\UsernameChanged;
  * Class MongoDbEventStoreAdapterTest
  * @package ProophTest\EventStore\Adapter\MongoDb
  */
-abstract class AbstractMongoDbEventStoreAdapterTest extends TestCase
+final class MongoDbEventStoreAdapterTest extends TestCase
 {
     /**
      * @var MongoDbEventStoreAdapter
      */
-    protected $adapter;
+    private $adapter;
 
     /**
-     * @var \MongoClient
+     * @var Client
      */
-    protected $client;
+    private $client;
 
     protected function setUp()
     {
-        $this->client = new \MongoClient();
-        $dbName = 'mongo_adapter_test';
-
-        $this->client->selectDB($dbName)->drop();
+        $this->client = TestUtil::getConnection();
 
         $this->adapter = new MongoDbEventStoreAdapter(
             new FQCNMessageFactory(),
             new NoOpMessageConverter(),
             $this->client,
-            $dbName,
-            null,
-            null,
-            [],
-            $this->disableIsolated()
+            TestUtil::getDatabaseName()
         );
     }
 
-    abstract public function disableIsolated();
-
     protected function tearDown()
     {
-        if (null !== $this->client) {
-            $this->client->selectDB('mongo_adapter_test')->drop();
-        }
+        TestUtil::tearDownDatabase();
     }
 
     /**
      * @test
      */
-    public function it_creates_a_stream()
+    public function it_creates_a_stream(): void
     {
         $testStream = $this->getTestStream();
 
@@ -85,14 +76,6 @@ abstract class AbstractMongoDbEventStoreAdapterTest extends TestCase
         }
         $this->assertEquals(1, $count);
 
-        $testStream->streamEvents()->rewind();
-        $streamEvents->rewind();
-
-        $testEvent = $testStream->streamEvents()->current();
-        $event = $streamEvents->current();
-
-        $this->assertEquals($testEvent->uuid()->toString(), $event->uuid()->toString());
-        $this->assertEquals($testEvent->createdAt()->format('Y-m-d\TH:i:s.uO'), $event->createdAt()->format('Y-m-d\TH:i:s.uO'));
         $this->assertEquals('ProophTest\EventStore\Mock\UserCreated', $event->messageName());
         $this->assertEquals('contact@prooph.de', $event->payload()['email']);
         $this->assertEquals(1, $event->version());
@@ -102,7 +85,7 @@ abstract class AbstractMongoDbEventStoreAdapterTest extends TestCase
     /**
      * @test
      */
-    public function it_appends_events_to_a_stream()
+    public function it_appends_events_to_a_stream(): void
     {
         $this->adapter->create($this->getTestStream());
 
@@ -138,7 +121,7 @@ abstract class AbstractMongoDbEventStoreAdapterTest extends TestCase
     /**
      * @test
      */
-    public function it_replays()
+    public function it_replays(): void
     {
         $testStream = $this->getTestStream();
 
@@ -160,28 +143,21 @@ abstract class AbstractMongoDbEventStoreAdapterTest extends TestCase
         $streamEvents = $this->adapter->replay(new StreamName('Prooph\Model\User'), null, ['tag' => 'person']);
 
         $count = 0;
+        $events = [];
         foreach ($streamEvents as $event) {
             $count++;
+            $events[] = $event;
         }
         $this->assertEquals(2, $count);
 
-        $testStream->streamEvents()->rewind();
-        $streamEvents->rewind();
+        $event = $events[0];
 
-        $testEvent = $testStream->streamEvents()->current();
-        $event = $streamEvents->current();
-
-        $this->assertEquals($testEvent->uuid()->toString(), $event->uuid()->toString());
-        $this->assertEquals($testEvent->createdAt()->format('Y-m-d\TH:i:s.uO'), $event->createdAt()->format('Y-m-d\TH:i:s.uO'));
         $this->assertEquals('ProophTest\EventStore\Mock\UserCreated', $event->messageName());
         $this->assertEquals('contact@prooph.de', $event->payload()['email']);
         $this->assertEquals(1, $event->version());
 
-        $streamEvents->next();
-        $event = $streamEvents->current();
+        $event = $events[1];
 
-        $this->assertEquals($streamEvent->uuid()->toString(), $event->uuid()->toString());
-        $this->assertEquals($streamEvent->createdAt()->format('Y-m-d\TH:i:s.uO'), $event->createdAt()->format('Y-m-d\TH:i:s.uO'));
         $this->assertEquals('ProophTest\EventStore\Mock\UsernameChanged', $event->messageName());
         $this->assertEquals('John Doe', $event->payload()['name']);
         $this->assertEquals(2, $event->version());
@@ -190,7 +166,7 @@ abstract class AbstractMongoDbEventStoreAdapterTest extends TestCase
     /**
      * @test
      */
-    public function it_replays_from_specific_date()
+    public function it_replays_from_specific_date(): void
     {
         $testStream = $this->getTestStream();
 
@@ -200,7 +176,7 @@ abstract class AbstractMongoDbEventStoreAdapterTest extends TestCase
 
         $this->adapter->commit();
 
-        sleep(1);
+        \sleep(1);
 
         $since = new \DateTime('now', new \DateTimeZone('UTC'));
 
@@ -221,13 +197,6 @@ abstract class AbstractMongoDbEventStoreAdapterTest extends TestCase
         }
         $this->assertEquals(1, $count);
 
-        $testStream->streamEvents()->rewind();
-        $streamEvents->rewind();
-
-        $event = $streamEvents->current();
-
-        $this->assertEquals($streamEvent->uuid()->toString(), $event->uuid()->toString());
-        $this->assertEquals($streamEvent->createdAt()->format('Y-m-d\TH:i:s.uO'), $event->createdAt()->format('Y-m-d\TH:i:s.uO'));
         $this->assertEquals('ProophTest\EventStore\Mock\UsernameChanged', $event->messageName());
         $this->assertEquals('John Doe', $event->payload()['name']);
         $this->assertEquals(2, $event->version());
@@ -236,7 +205,7 @@ abstract class AbstractMongoDbEventStoreAdapterTest extends TestCase
     /**
      * @test
      */
-    public function it_replays_events_of_two_aggregates_in_a_single_stream_in_correct_order()
+    public function it_replays_events_of_two_aggregates_in_a_single_stream_in_correct_order(): void
     {
         $testStream = $this->getTestStream();
 
@@ -255,7 +224,7 @@ abstract class AbstractMongoDbEventStoreAdapterTest extends TestCase
 
         $this->adapter->appendTo(new StreamName('Prooph\Model\User'), new \ArrayIterator([$streamEvent]));
 
-        sleep(1);
+        \sleep(1);
 
         $secondUserEvent = UserCreated::with(
             ['name' => 'Jane Doe', 'email' => 'jane@acme.com'],
@@ -267,7 +236,6 @@ abstract class AbstractMongoDbEventStoreAdapterTest extends TestCase
         $this->adapter->appendTo(new StreamName('Prooph\Model\User'), new \ArrayIterator([$secondUserEvent]));
 
         $streamEvents = $this->adapter->replay(new StreamName('Prooph\Model\User'), null, ['tag' => 'person']);
-
 
         $replayedPayloads = [];
         foreach ($streamEvents as $event) {
@@ -286,7 +254,7 @@ abstract class AbstractMongoDbEventStoreAdapterTest extends TestCase
     /**
      * @test
      */
-    public function it_loads_events_from_min_version_on()
+    public function it_loads_events_from_min_version_on(): void
     {
         $this->adapter->create($this->getTestStream());
 
@@ -312,13 +280,58 @@ abstract class AbstractMongoDbEventStoreAdapterTest extends TestCase
 
         $this->assertTrue($stream->streamEvents()->valid());
         $event = $stream->streamEvents()->current();
-        $this->assertNotEmpty($stream->streamEvents()->key());
+        $this->assertEquals(0, $stream->streamEvents()->key());
         $this->assertEquals('John Doe', $event->payload()['name']);
 
         $stream->streamEvents()->next();
         $this->assertTrue($stream->streamEvents()->valid());
         $event = $stream->streamEvents()->current();
-        $this->assertNotEmpty($stream->streamEvents()->key());
+        $this->assertEquals(1, $stream->streamEvents()->key());
+        $this->assertEquals('Jane Doe', $event->payload()['name']);
+
+        $stream->streamEvents()->next();
+        $this->assertFalse($stream->streamEvents()->valid());
+    }
+
+    /**
+     * @test
+     */
+    public function it_loads_events_in_transaction(): void
+    {
+        $this->adapter->create($this->getTestStream());
+
+        $streamEvent1 = UsernameChanged::with(
+            ['name' => 'John Doe'],
+            2
+        );
+
+        $streamEvent1 = $streamEvent1->withAddedMetadata('tag', 'person');
+
+        $streamEvent2 = UsernameChanged::with(
+            ['name' => 'Jane Doe'],
+            3
+        );
+
+        $streamEvent2 = $streamEvent2->withAddedMetadata('tag', 'person');
+
+        $this->adapter->appendTo(new StreamName('Prooph\Model\User'), new \ArrayIterator([$streamEvent1, $streamEvent2]));
+
+        $this->adapter->beginTransaction();
+        $stream = $this->adapter->load(new StreamName('Prooph\Model\User'), 2);
+        // it must be committed, otherwise it hangs for a minute
+        $this->adapter->commit();
+
+        $this->assertEquals('Prooph\Model\User', $stream->streamName()->toString());
+
+        $this->assertTrue($stream->streamEvents()->valid());
+        $event = $stream->streamEvents()->current();
+        $this->assertEquals(0, $stream->streamEvents()->key());
+        $this->assertEquals('John Doe', $event->payload()['name']);
+
+        $stream->streamEvents()->next();
+        $this->assertTrue($stream->streamEvents()->valid());
+        $event = $stream->streamEvents()->current();
+        $this->assertEquals(1, $stream->streamEvents()->key());
         $this->assertEquals('Jane Doe', $event->payload()['name']);
 
         $stream->streamEvents()->next();
@@ -329,7 +342,7 @@ abstract class AbstractMongoDbEventStoreAdapterTest extends TestCase
      * @test
      * @expectedException \Prooph\EventStore\Exception\ConcurrencyException
      */
-    public function it_fails_to_write_with_duplicate_aggregate_id_and_version()
+    public function it_fails_to_write_with_duplicate_aggregate_id_and_version(): void
     {
         $this->adapter->create($this->getTestStream());
 
@@ -348,56 +361,43 @@ abstract class AbstractMongoDbEventStoreAdapterTest extends TestCase
      * @expectedException Assert\InvalidArgumentException
      * @expectedExceptionMessage Mongo database name is missing
      */
-    public function it_throws_exception_when_no_db_name_set()
+    public function it_throws_exception_when_no_db_name_set(): void
     {
-        new MongoDbEventStoreAdapter(new FQCNMessageFactory(), new NoOpMessageConverter(), new \MongoClient(), null);
+        new MongoDbEventStoreAdapter(new FQCNMessageFactory(), new NoOpMessageConverter(), new Client(), '');
     }
 
     /**
      * @test
      * @expectedException Prooph\EventStore\Exception\RuntimeException
      */
-    public function it_throws_exception_when_empty_stream_created()
+    public function it_throws_exception_when_empty_stream_created(): void
     {
         $this->adapter->create(new Stream(new StreamName('Prooph\Model\User'), new \ArrayIterator([])));
     }
 
     /**
      * @test
-     * @expectedException Assert\InvalidArgumentException
-     * @expectedExceptionMessage Transaction timeout must be a positive integer
      */
-    public function it_throws_exception_when_invalid_transaction_timeout_given()
+    public function it_accepts_disable_transaction_handling(): void
     {
-        new MongoDbEventStoreAdapter(
+        $adapter = new MongoDbEventStoreAdapter(
             new FQCNMessageFactory(),
             new NoOpMessageConverter(),
-            new \MongoClient(),
+            new Client(),
             'mongo_adapter_test',
-            null,
-            'invalid'
+            [],
+            true
         );
+        $adapter->beginTransaction();
+        $adapter->commit();
+        $adapter->rollback();
+        $this->assertTrue(true);
     }
 
     /**
      * @test
      */
-    public function it_accepts_custom_transaction_timeout()
-    {
-        new MongoDbEventStoreAdapter(
-            new FQCNMessageFactory(),
-            new NoOpMessageConverter(),
-            new \MongoClient(),
-            'mongo_adapter_test',
-            null,
-            10
-        );
-    }
-
-    /**
-     * @test
-     */
-    public function it_can_rollback_transaction()
+    public function it_can_rollback_transaction(): void
     {
         $testStream = $this->getTestStream();
 
@@ -414,42 +414,10 @@ abstract class AbstractMongoDbEventStoreAdapterTest extends TestCase
 
     /**
      * @test
-     */
-    public function it_rolls_back_transaction_after_timeout()
-    {
-        $this->client = new \MongoClient();
-        $dbName = 'mongo_adapter_test';
-
-        $this->client->selectDB($dbName)->drop();
-
-        $this->adapter = new MongoDbEventStoreAdapter(
-            new FQCNMessageFactory(),
-            new NoOpMessageConverter(),
-            $this->client,
-            $dbName,
-            null,
-            3
-        );
-
-        $testStream = $this->getTestStream();
-
-        $this->adapter->beginTransaction();
-
-        $this->adapter->create($testStream);
-
-        sleep(3);
-
-        $result = $this->adapter->loadEvents(new StreamName('Prooph\Model\User'), ['tag' => 'person']);
-
-        $this->assertFalse($result->valid());
-    }
-
-    /**
-     * @test
      * @expectedException RuntimeException
      * @expectedExceptionMessage Transaction already started
      */
-    public function it_throws_exception_when_second_transaction_started()
+    public function it_throws_exception_when_second_transaction_started(): void
     {
         $this->adapter->beginTransaction();
         $this->adapter->beginTransaction();
@@ -458,22 +426,17 @@ abstract class AbstractMongoDbEventStoreAdapterTest extends TestCase
     /**
      * @test
      */
-    public function it_uses_custom_stream_collection_map()
+    public function it_uses_custom_stream_collection_map(): void
     {
-        $this->client = new \MongoClient();
-        $dbName = 'mongo_adapter_test';
-
-        $this->client->selectDB($dbName)->drop();
+        $dbName = TestUtil::getDatabaseName();
 
         $this->adapter = new MongoDbEventStoreAdapter(
             new FQCNMessageFactory(),
             new NoOpMessageConverter(),
             $this->client,
             $dbName,
-            null,
-            3,
             [
-                'Prooph\Model\User' => 'test_collection_name'
+                'Prooph\Model\User' => 'test_collection_name',
             ]
         );
 
@@ -487,30 +450,23 @@ abstract class AbstractMongoDbEventStoreAdapterTest extends TestCase
 
         $collectionContent = $this->client->selectCollection($dbName, 'test_collection_name')->find([]);
 
-        $this->assertEquals(1, count($collectionContent));
+        $this->assertCount(1, $collectionContent->toArray());
     }
 
     /**
      * @test
-     * @expectedException RuntimeException
-     * @expectedExceptionMessage Cannot write to different streams in one transaction
      */
-    public function it_throws_exception_when_trying_to_write_to_different_streams_in_one_transaction()
+    public function it_throws_exception_when_trying_to_write_to_different_streams_in_one_transaction_if_they_not_exists(): void
     {
-        $this->client = new \MongoClient();
-        $dbName = 'mongo_adapter_test';
-
-        $this->client->selectDB($dbName)->drop();
+        $dbName = TestUtil::getDatabaseName();
 
         $this->adapter = new MongoDbEventStoreAdapter(
             new FQCNMessageFactory(),
             new NoOpMessageConverter(),
             $this->client,
             $dbName,
-            null,
-            3,
             [
-                'Prooph\Model\User' => 'test_collection_name'
+                'Prooph\Model\User' => 'test_collection_name',
             ]
         );
 
@@ -527,6 +483,9 @@ abstract class AbstractMongoDbEventStoreAdapterTest extends TestCase
 
         $streamEvent = $streamEvent->withAddedMetadata('tag', 'person');
 
+        $this->expectException(RuntimeAdapterException::class);
+        $this->expectExceptionMessage('Could not write to event stream');
+
         $this->adapter->appendTo(new StreamName('another_one'), new \ArrayIterator([$streamEvent]));
 
         $this->adapter->commit();
@@ -535,25 +494,77 @@ abstract class AbstractMongoDbEventStoreAdapterTest extends TestCase
     /**
      * @test
      */
-    public function it_can_commit_empty_transaction()
+    public function it_writes_to_different_streams_in_one_transaction_if_they_exists(): void
     {
+        $dbName = TestUtil::getDatabaseName();
+
+        $this->adapter = new MongoDbEventStoreAdapter(
+            new FQCNMessageFactory(),
+            new NoOpMessageConverter(),
+            $this->client,
+            $dbName,
+            [
+                'Prooph\Model\User' => 'test_collection_name',
+            ]
+        );
+
+        $testStream = $this->getTestStream();
+
+        $anotherTestStream = new Stream(
+            new StreamName('another_test_stream'),
+            new \ArrayIterator([UserCreated::with(['name' => 'Another Max Mustermann'], 1)])
+        );
+
+        $this->adapter->create($testStream);
+        $this->adapter->create($anotherTestStream);
+
         $this->adapter->beginTransaction();
+
+        $streamEvent = UserCreated::with(
+            ['name' => 'Max Mustermann', 'email' => 'contact@prooph.de'],
+            2
+        );
+        $anotherStreamEvent = UserCreated::with(
+            ['name' => 'Another Second Max Mustermann'],
+            2
+        );
+
+        $streamEvent = $streamEvent->withAddedMetadata('tag', 'person');
+        $anotherStreamEvent = $anotherStreamEvent->withAddedMetadata('tag', 'anotherPerson');
+
+        $this->adapter->appendTo($testStream->streamName(), new \ArrayIterator([$streamEvent]));
+        $this->adapter->appendTo($anotherTestStream->streamName(), new \ArrayIterator([$anotherStreamEvent]));
+
         $this->adapter->commit();
+
+        $this->assertEquals(2, $this->client->selectCollection($dbName, 'test_collection_name')->countDocuments());
+        $this->assertEquals(2, $this->client->selectCollection($dbName, 'another_test_stream')->countDocuments());
     }
 
     /**
      * @test
      */
-    public function it_can_rollback_empty_transaction()
+    public function it_can_commit_empty_transaction(): void
+    {
+        $this->adapter->beginTransaction();
+        $this->adapter->commit();
+        $this->assertTrue(true);
+    }
+
+    /**
+     * @test
+     */
+    public function it_can_rollback_empty_transaction(): void
     {
         $this->adapter->beginTransaction();
         $this->adapter->rollback();
+        $this->assertTrue(true);
     }
 
     /**
      * @return Stream
      */
-    private function getTestStream()
+    private function getTestStream(): Stream
     {
         $streamEvent = UserCreated::with(
             ['name' => 'Max Mustermann', 'email' => 'contact@prooph.de'],

@@ -1,13 +1,13 @@
 <?php
 /*
  * This file is part of the prooph/event-store-mongodb-adapter.
- * (c) 2014 - 2015 prooph software GmbH <contact@prooph.de>
+ * (c) 2014-2018 prooph software GmbH <contact@prooph.de>
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
- *
- * Date: 08/20/15 - 17:13
  */
+
+declare(strict_types=1);
 
 namespace Prooph\EventStore\Adapter\MongoDb\Container;
 
@@ -15,12 +15,13 @@ use Interop\Config\ConfigurationTrait;
 use Interop\Config\ProvidesDefaultOptions;
 use Interop\Config\RequiresConfig;
 use Interop\Config\RequiresMandatoryOptions;
-use Interop\Container\ContainerInterface;
+use MongoDB\Client;
 use Prooph\Common\Messaging\FQCNMessageFactory;
 use Prooph\Common\Messaging\MessageConverter;
 use Prooph\Common\Messaging\MessageFactory;
 use Prooph\Common\Messaging\NoOpMessageConverter;
 use Prooph\EventStore\Adapter\MongoDb\MongoDbEventStoreAdapter;
+use Psr\Container\ContainerInterface;
 
 /**
  * Class MongoDbEventStoreAdapterFactory
@@ -30,18 +31,14 @@ final class MongoDbEventStoreAdapterFactory implements RequiresConfig, RequiresM
 {
     use ConfigurationTrait;
 
-    /**
-     * @param ContainerInterface $container
-     * @return MongoDbEventStoreAdapter
-     */
-    public function __invoke(ContainerInterface $container)
+    public function __invoke(ContainerInterface $container): MongoDbEventStoreAdapter
     {
         $config = $container->get('config');
         $config = $this->options($config)['adapter']['options'];
 
         $mongoClient = isset($config['mongo_connection_alias'])
             ? $container->get($config['mongo_connection_alias'])
-            : new \MongoClient();
+            : new Client();
 
         $messageFactory = $container->has(MessageFactory::class)
             ? $container->get(MessageFactory::class)
@@ -56,49 +53,36 @@ final class MongoDbEventStoreAdapterFactory implements RequiresConfig, RequiresM
             $messageConverter,
             $mongoClient,
             $config['db_name'],
-            $config['write_concern'],
-            $config['transaction_timeout'],
             $config['stream_collection_map'],
-            !empty($config['disable_isolated']) ? true : false
+            $config['disable_transaction_handling']
         );
     }
 
-    /**
-     * @inheritdoc
-     */
-    public function dimensions()
+    public function dimensions(): iterable
     {
         return ['prooph', 'event_store'];
     }
 
-    /**
-     * @inheritdoc
-     */
-    public function mandatoryOptions()
+    public function mandatoryOptions(): iterable
     {
         return [
             'adapter' => [
                 'options' => [
-                    'db_name'
-                ]
-            ]
+                    'db_name',
+                ],
+            ],
         ];
     }
-    /**
-     * @inheritdoc
-     */
-    public function defaultOptions()
+
+    public function defaultOptions(): iterable
     {
         return [
             'adapter' => [
                 'options' => [
                     'stream_collection_map' => [],
-                    'transaction_timeout' => null,
-                    'write_concern' => [
-                        'w' => 1,
-                    ],
-                ]
-            ]
+                    'disable_transaction_handling' => false,
+                ],
+            ],
         ];
     }
 }

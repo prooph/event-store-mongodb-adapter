@@ -14,18 +14,17 @@ Codeliner has published a [Gist](https://gist.github.com/codeliner/14a8d98d53efa
 Requirements
 ------------
 
-- MongoDB >= 2.6.0
-- PHP Mongo Extension >= 1.5.0
-- alcaeus/mongo-php-adapter >= 1.0.5 for usage with PHP 7
+- MongoDB >= 4.0
+- MongoDB PHP Driver >= 1.5.2
 
-Write concern
+Transactions
 -------------
 
-This adapter uses a transaction timeout of 50 secs by default.
+The transaction write concern for this adapter is `majority`.
 
-The default write concern for this adapater is acknowledged (['w' => 1]).
+The transaction read concern for this adapter is `snapshot`.
 
-It's possible to change both values by injecting them into the constructor or by using the factory.
+You can disable transactions for this adapter.
 
 Considerations
 --------------
@@ -34,6 +33,7 @@ This adapter does not use the MongoDB ObjectId for its primary key, instead a UU
 
 We recommend the AggregateStreamStrategy as the best strategy to use with this adapter.
 
-This adapter uses the `$isolated` operator to achieve transaction safety for a single collection.
-Keep in mind, that `$isolated` does not work with sharded clusters. Therefore it's not safe to use this adapter
-in a sharded cluster environment, as MongoDB can't guarantee transaction safety.
+Keep in mind that transaction safety works only for a replica set. Sharded cluster support is planned for MongoDB 4.2.
+Therefore it's not safe to use this adapter in a sharded cluster environment, as MongoDB can't guarantee transaction safety.
+
+Stream can not be reset if iteration was started due the MongoDB cursor.
