@@ -58,7 +58,8 @@ final class MongoDbEventStoreAdapterFactory implements RequiresConfig, RequiresM
             $config['db_name'],
             $config['write_concern'],
             $config['transaction_timeout'],
-            $config['stream_collection_map']
+            $config['stream_collection_map'],
+            !empty($config['disable_isolated']) ? true : false
         );
     }
 

@@ -90,6 +90,15 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     private $streamCollectionMap = [];
 
     /**
+     * Disable $isolated in MongoDB update
+     *
+     * This is only useful if you want to upgrade to MongoDB 4.0
+     *
+     * @var bool
+     */
+    private $disableIsolated;
+
+    /**
      * @param MessageFactory $messageFactory
      * @param MessageConverter $messageConverter
      * @param \MongoClient $mongoClient
@@ -97,6 +106,7 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      * @param array|null $writeConcern
      * @param int|null $transactionTimeout
      * @param array $streamCollectionMap
+     * @param bool $disableIsolated
      */
     public function __construct(
         MessageFactory $messageFactory,
@@ -105,7 +115,8 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
         $dbName,
         array $writeConcern = null,
         $transactionTimeout = null,
-        array $streamCollectionMap = []
+        array $streamCollectionMap = [],
+        $disableIsolated = false
     ) {
         Assertion::minLength($dbName, 1, 'Mongo database name is missing');
 
@@ -114,6 +125,7 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
         $this->mongoClient      = $mongoClient;
         $this->dbName           = $dbName;
         $this->streamCollectionMap = $streamCollectionMap;
+        $this->disableIsolated = (bool)$disableIsolated;
 
         if (null !== $writeConcern) {
             $this->writeConcern = $writeConcern;
@@ -302,12 +314,18 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
 
         $updateBatch = $this->getUpdateBatch($this->currentStreamName);
 
+        $q = [
+            'transaction_id' => $this->transactionId,
+            '$isolated' => 1
+        ];
+
+        if ($this->disableIsolated) {
+            unset($q['$isolated']);
+        }
+
         $updateBatch->add(
             [
-                'q' => [
-                    'transaction_id' => $this->transactionId,
-                    '$isolated' => 1
-                ],
+                'q' => $q,
                 'u' => [
                     '$unset' => [
                         'expire_at' => 1,
