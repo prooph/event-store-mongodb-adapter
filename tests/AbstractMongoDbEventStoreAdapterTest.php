@@ -24,17 +24,17 @@ use ProophTest\EventStore\Mock\UsernameChanged;
  * Class MongoDbEventStoreAdapterTest
  * @package ProophTest\EventStore\Adapter\MongoDb
  */
-final class MongoDbEventStoreAdapterTest extends TestCase
+abstract class AbstractMongoDbEventStoreAdapterTest extends TestCase
 {
     /**
      * @var MongoDbEventStoreAdapter
      */
-    private $adapter;
+    protected $adapter;
 
     /**
      * @var \MongoClient
      */
-    private $client;
+    protected $client;
 
     protected function setUp()
     {
@@ -47,9 +47,15 @@ final class MongoDbEventStoreAdapterTest extends TestCase
             new FQCNMessageFactory(),
             new NoOpMessageConverter(),
             $this->client,
-            $dbName
+            $dbName,
+            null,
+            null,
+            [],
+            $this->disableIsolated()
         );
     }
+
+    abstract public function disableIsolated();
 
     protected function tearDown()
     {
