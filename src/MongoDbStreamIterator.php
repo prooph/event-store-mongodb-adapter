@@ -1,13 +1,13 @@
 <?php
 /*
  * This file is part of the prooph/event-store-mongodb-adapter.
- * (c) 2014 - 2015 prooph software GmbH <contact@prooph.de>
+ * (c) 2014-2018 prooph software GmbH <contact@prooph.de>
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
- *
- * Date: 09/25/15 - 15:17
  */
+
+declare(strict_types=1);
 
 namespace Prooph\EventStore\Adapter\MongoDb;
 
@@ -22,9 +22,9 @@ use Prooph\Common\Messaging\MessageFactory;
 final class MongoDbStreamIterator implements Iterator
 {
     /**
-     * @var Iterator
+     * @var \Generator
      */
-    private $innerIterator;
+    private $iterator;
 
     /**
      * @var MessageFactory
@@ -46,21 +46,19 @@ final class MongoDbStreamIterator implements Iterator
         'payload',
         'version',
         'transaction_id',
-        'expire_at'
+        'expire_at',
     ];
 
     /**
-     * @param Iterator $iterator
+     * @param \Generator $iterator
      * @param MessageFactory $messageFactory
      * @param array $metadata
      */
-    public function __construct(Iterator $iterator, MessageFactory $messageFactory, array $metadata)
+    public function __construct(\Generator $iterator, MessageFactory $messageFactory, array $metadata)
     {
-        $this->innerIterator = $iterator;
+        $this->iterator = $iterator;
         $this->messageFactory = $messageFactory;
         $this->metadata = $metadata;
-
-        $iterator->rewind();
     }
 
     /**
@@ -68,12 +66,12 @@ final class MongoDbStreamIterator implements Iterator
      */
     public function current()
     {
-        $current = $this->innerIterator->current();
+        $current = $this->iterator->current();
 
         $metadata = [];
 
         foreach ($current as $key => $value) {
-            if (! in_array($key, $this->standardColumns)) {
+            if (! \in_array($key, $this->standardColumns, true)) {
                 $metadata[$key] = $value;
             }
         }
@@ -89,7 +87,7 @@ final class MongoDbStreamIterator implements Iterator
             'version' => (int) $current['version'],
             'created_at' => $createdAt,
             'payload' => $current['payload'],
-            'metadata' => $metadata
+            'metadata' => $metadata,
         ]);
     }
 
@@ -98,7 +96,7 @@ final class MongoDbStreamIterator implements Iterator
      */
     public function next()
     {
-        $this->innerIterator->next();
+        $this->iterator->next();
     }
 
     /**
@@ -106,7 +104,7 @@ final class MongoDbStreamIterator implements Iterator
      */
     public function key()
     {
-        return $this->innerIterator->key();
+        return $this->iterator->key();
     }
 
     /**
@@ -114,7 +112,7 @@ final class MongoDbStreamIterator implements Iterator
      */
     public function valid()
     {
-        return $this->innerIterator->valid();
+        return $this->iterator->valid();
     }
 
     /**
@@ -122,6 +120,6 @@ final class MongoDbStreamIterator implements Iterator
      */
     public function rewind()
     {
-        $this->innerIterator->rewind();
+        $this->iterator->rewind();
     }
 }

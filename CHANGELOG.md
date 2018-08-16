@@ -1,5 +1,15 @@
 # Change Log
 
+## [v3.0.0](https://github.com/prooph/event-store-mongodb-adapter/tree/v3.0.0) (2018-08-16)
+[Full Changelog](https://github.com/prooph/event-store-mongodb-adapter/compare/v2.4.1...v3.0.0)
+
+**Implemented enhancements:**
+
+- Use MongoDB 4.0 multi document transactions
+- Requires MongoDB >= 4.0
+- Requires MongoDB PHP Driver >= 1.5.2
+- Creates collection indexes in background
+
 ## [v2.4.1](https://github.com/prooph/event-store-mongodb-adapter/tree/v2.4.1) (2017-02-21)
 [Full Changelog](https://github.com/prooph/event-store-mongodb-adapter/compare/v2.4.0...v2.4.1)
 
