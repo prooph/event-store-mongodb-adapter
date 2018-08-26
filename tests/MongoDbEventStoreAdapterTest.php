@@ -17,6 +17,7 @@ use Prooph\Common\Messaging\FQCNMessageFactory;
 use Prooph\Common\Messaging\NoOpMessageConverter;
 use Prooph\EventStore\Adapter\MongoDb\Exception\RuntimeAdapterException;
 use Prooph\EventStore\Adapter\MongoDb\MongoDbEventStoreAdapter;
+use Prooph\EventStore\Exception\ConcurrencyException;
 use Prooph\EventStore\Stream\Stream;
 use Prooph\EventStore\Stream\StreamName;
 use ProophTest\EventStore\Mock\UserCreated;
@@ -539,6 +540,37 @@ final class MongoDbEventStoreAdapterTest extends TestCase
 
         $this->assertEquals(2, $this->client->selectCollection($dbName, 'test_collection_name')->countDocuments());
         $this->assertEquals(2, $this->client->selectCollection($dbName, 'another_test_stream')->countDocuments());
+    }
+
+    /**
+     * @test
+     */
+    public function it_throws_concurrency_exception_on_duplicate_key_error(): void
+    {
+        $dbName = TestUtil::getDatabaseName();
+
+        $this->adapter = new MongoDbEventStoreAdapter(
+            new FQCNMessageFactory(),
+            new NoOpMessageConverter(),
+            $this->client,
+            $dbName,
+            [
+                'Prooph\Model\User' => 'test_collection_name',
+            ]
+        );
+
+        $testStream = $this->getTestStream();
+
+        $this->adapter->beginTransaction();
+
+        $this->adapter->create($testStream);
+
+        $this->expectException(ConcurrencyException::class);
+        $this->expectExceptionMessage('At least one event');
+
+        $this->adapter->appendTo($testStream->streamName(), $testStream->streamEvents());
+
+        $this->adapter->commit();
     }
 
     /**

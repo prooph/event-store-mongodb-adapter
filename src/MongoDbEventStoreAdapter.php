@@ -157,7 +157,7 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
         } catch (\MongoDB\Driver\Exception\BulkWriteException $e) {
             $code = isset($e->getWriteResult()->getWriteErrors()[0]) ?
                 $e->getWriteResult()->getWriteErrors()[0]->getCode()
-                : 0;
+                : $e->getCode();
 
             if (\in_array($code, [11000, 11001, 12582], true)) {
                 throw new ConcurrencyException('At least one event with same version exists already', 0, $e);
