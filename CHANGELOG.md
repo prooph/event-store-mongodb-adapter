@@ -1,5 +1,12 @@
 # Change Log
 
+## [v3.0.1](https://github.com/prooph/event-store-mongodb-adapter/tree/v3.0.1) (2018-08-26)
+[Full Changelog](https://github.com/prooph/event-store-mongodb-adapter/compare/v3.0.0...v3.0.1)
+
+**Fixed bugs:**
+
+- MongoDB concurrency check [\#65](https://github.com/prooph/event-store-mongodb-adapter/pull/65) ([sandrokeil](https://github.com/sandrokeil))
+
 ## [v3.0.0](https://github.com/prooph/event-store-mongodb-adapter/tree/v3.0.0) (2018-08-16)
 [Full Changelog](https://github.com/prooph/event-store-mongodb-adapter/compare/v2.4.1...v3.0.0)
 
