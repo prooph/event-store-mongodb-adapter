@@ -1,5 +1,7 @@
 <?php
-/*
+
+/**
+ * /*
  * This file is part of the prooph/event-store-mongodb-adapter.
  * (c) 2014-2018 prooph software GmbH <contact@prooph.de>
  *
@@ -114,7 +116,7 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
      */
     public function create(Stream $stream)
     {
-        if (!$stream->streamEvents()->valid()) {
+        if (! $stream->streamEvents()->valid()) {
             throw new RuntimeException(
                 \sprintf(
                     'Cannot create empty stream %s. %s requires at least one event to extract metadata information',
@@ -141,7 +143,7 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
     {
         $options = [];
 
-        if (!$this->disableTransactionHandling) {
+        if (! $this->disableTransactionHandling) {
             $options = [
                 'session' => $this->session,
             ];
@@ -179,7 +181,7 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
         ];
 
         foreach ($eventArr['metadata'] as $key => $value) {
-            $eventData[$key] = (string)$value;
+            $eventData[$key] = (string) $value;
         }
 
         return $eventData;
@@ -218,7 +220,7 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
             'sort' => ['version' => self::SORT_ASCENDING],
         ];
 
-        if (!$this->disableTransactionHandling) {
+        if (! $this->disableTransactionHandling) {
             $options = [
                 'session' => $this->session,
             ];
@@ -252,7 +254,7 @@ final class MongoDbEventStoreAdapter implements Adapter, CanHandleTransaction
             ],
         ];
 
-        if (!$this->disableTransactionHandling) {
+        if (! $this->disableTransactionHandling) {
             $options = [
                 'session' => $this->session,
             ];

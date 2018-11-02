@@ -1,5 +1,7 @@
 <?php
-/*
+
+/**
+ * /*
  * This file is part of the prooph/event-store-mongodb-adapter.
  * (c) 2014-2018 prooph software GmbH <contact@prooph.de>
  *
