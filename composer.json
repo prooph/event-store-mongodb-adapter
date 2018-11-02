@@ -25,7 +25,6 @@
         "prooph/common": "^3.7"
     },
     "require-dev": {
-        "malukenho/docheader": "^0.1.4",
         "phpspec/prophecy": "^1.7",
         "phpunit/php-invoker": "^2.0",
         "phpunit/phpunit": "^7.1.4",
